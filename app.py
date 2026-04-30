@@ -4,41 +4,57 @@ import plotly.express as px
 from scipy.optimize import linprog
 
 # -------------------------
-# PAGE CONFIG (MOBILE FRIENDLY)
+# PAGE CONFIG
 # -------------------------
 st.set_page_config(
-    page_title="Restaurant AI Dashboard",
+    page_title="Seralung Optimiz",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
 # -------------------------
-# SIMPLE CLEAN UI STYLE
+# CUSTOM UI (Fix buttons + clean SaaS look)
 # -------------------------
 st.markdown("""
     <style>
-        .main {
-            padding: 10px;
+    .main {
+        padding: 10px;
+    }
+
+    h1, h2, h3 {
+        color: #111;
+    }
+
+    /* FIX BUTTON VISIBILITY */
+    .stButton > button {
+        background-color: #111827;
+        color: white;
+        border-radius: 10px;
+        padding: 0.6em 1.2em;
+        font-weight: 600;
+        border: none;
+    }
+
+    .stButton > button:hover {
+        background-color: #2563eb;
+        color: white;
+    }
+
+    /* MOBILE FRIENDLY */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-left: 12px;
+            padding-right: 12px;
         }
-        h1, h2, h3 {
-            color: #111;
-        }
-        .stMetric {
-            background-color: #f4f4f4;
-            padding: 10px;
-            border-radius: 10px;
-        }
-        @media (max-width: 768px) {
-            .block-container {
-                padding-left: 10px;
-                padding-right: 10px;
-            }
-        }
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🍽️ Restaurant AI Profit Dashboard")
-st.write("Upload your data, optimize profit, and test pricing strategies.")
+# -------------------------
+# TITLE
+# -------------------------
+st.title("🍽️ Seralung Optimiz")
+st.write("AI-powered restaurant profit + pricing optimization system")
 
 # -------------------------
 # UPLOAD CSV
@@ -76,7 +92,7 @@ if period == "Weekly":
     df["Max Demand"] *= 7
 
 # -------------------------
-# RUN OPTIMIZATION
+# OPTIMIZATION
 # -------------------------
 if st.button("🚀 Run Optimization"):
 
@@ -100,12 +116,11 @@ if st.button("🚀 Run Optimization"):
         total_profit = df["Total Profit"].sum()
         total_revenue = df["Revenue"].sum()
         total_cost = df["Total Cost"].sum()
-        labour_used = df["Labour Used"].sum()
 
         # -------------------------
-        # KPI CARDS
+        # KPI METRICS
         # -------------------------
-        st.subheader("📊 Key Metrics")
+        st.subheader("📊 Performance Overview")
 
         c1, c2, c3 = st.columns(3)
         c1.metric("💰 Profit", f"${total_profit:,.2f}")
@@ -132,21 +147,24 @@ if st.button("🚀 Run Optimization"):
         st.plotly_chart(fig3, use_container_width=True)
 
         # -------------------------
-        # PRICING SENSITIVITY ANALYSIS (NEW)
+        # SET PRICE (SENSITIVITY ANALYSIS)
         # -------------------------
-        st.subheader("📊 Pricing Sensitivity Analysis")
+        st.subheader("💰 Set Price (Pricing Decision Tool)")
+        st.write("Test how pricing changes affect profit and choose the best strategy.")
 
         price_changes = [-0.2, -0.1, 0, 0.1, 0.2]
+
         results = []
 
         for change in price_changes:
             temp = df.copy()
-            temp["Adj Price"] = temp["Price"] * (1 + change)
-            temp["Adj Profit"] = temp["Adj Price"] - temp["Cost"]
-            temp["Scenario Profit"] = temp["Adj Profit"] * temp["Optimal Qty"]
+
+            temp["Test Price"] = temp["Price"] * (1 + change)
+            temp["Test Profit"] = temp["Test Price"] - temp["Cost"]
+            temp["Scenario Profit"] = temp["Test Profit"] * temp["Optimal Qty"]
 
             results.append({
-                "Price Change %": f"{int(change*100)}%",
+                "Price Change": f"{int(change*100)}%",
                 "Total Profit": temp["Scenario Profit"].sum()
             })
 
@@ -154,14 +172,19 @@ if st.button("🚀 Run Optimization"):
 
         fig4 = px.line(
             scenario_df,
-            x="Price Change %",
+            x="Price Change",
             y="Total Profit",
             markers=True,
-            title="Profit vs Price Change"
+            title="Profit Sensitivity Curve"
         )
+
         st.plotly_chart(fig4, use_container_width=True)
 
         st.dataframe(scenario_df, use_container_width=True)
+
+        best = scenario_df.loc[scenario_df["Total Profit"].idxmax()]
+
+        st.success(f"💡 Recommended Strategy: {best['Price Change']} price change gives highest profit")
 
         # -------------------------
         # OPTIMIZED TABLE
@@ -170,14 +193,16 @@ if st.button("🚀 Run Optimization"):
         st.dataframe(df, use_container_width=True)
 
         # -------------------------
-        # INSIGHTS (SMART)
+        # INSIGHTS
         # -------------------------
         st.subheader("🧠 Insights")
+
+        labour_used = df["Labour Used"].sum()
 
         insights = []
 
         if labour_used > 0.9 * labour_hours:
-            insights.append("⚠️ Labour is your main constraint.")
+            insights.append("⚠️ Labour is your main constraint limiting profit.")
         else:
             insights.append("✅ Labour capacity is sufficient.")
 
@@ -186,10 +211,7 @@ if st.button("🚀 Run Optimization"):
 
         low_items = df[df["Profit"] < df["Profit"].mean()]["Item"].tolist()
         if low_items:
-            insights.append(f"📉 Improve: {', '.join(low_items)}")
-
-        best_scenario = scenario_df.loc[scenario_df["Total Profit"].idxmax()]
-        insights.append(f"💡 Best pricing move: {best_scenario['Price Change %']}")
+            insights.append(f"📉 Improve pricing or reduce focus on: {', '.join(low_items)}")
 
         for i in insights:
             st.write(i)
@@ -198,7 +220,7 @@ if st.button("🚀 Run Optimization"):
         # DOWNLOAD
         # -------------------------
         csv = df.to_csv(index=False)
-        st.download_button("📥 Download Report", csv, "report.csv", "text/csv")
+        st.download_button("📥 Download Report", csv, "seralung_optimiz.csv", "text/csv")
 
     else:
-        st.error("Optimization failed. Check your inputs.")
+        st.error("Optimization failed. Please check inputs.")
