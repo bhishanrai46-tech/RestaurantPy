@@ -1,15 +1,6 @@
 """
-MenuProfit Pro — Full SaaS Edition
-====================================
-Taha's Operations Research (10th Ed.) applied exhaustively:
-
-  Ch. 2–3   Linear Programming      → Menu mix optimisation + dual/shadow prices
-  Ch. 10    Nonlinear Optimisation   → Price-elasticity demand + global price solver
-  Ch. 13    Inventory / EOQ         → Economic Order Qty, safety stock, reorder point
-  Ch. 15    Decision Analysis        → Menu engineering matrix (Stars/Puzzles/Horses/Dogs)
-  Ch. 17    Markov Chains            → Customer retention & lifetime value
-  Ch. 18    Queuing Theory           → Kitchen throughput, utilisation, bottleneck analysis
-  Ch. 19    Monte Carlo Simulation   → Revenue risk distribution, P5/P50/P95
+MenuProfit Pro
+Restaurant profit tool — LP, EOQ, Monte Carlo, Markov, Queuing
 
 Run:
     pip install streamlit pandas numpy plotly scipy openpyxl
@@ -26,7 +17,6 @@ import numpy as np
 import plotly.graph_objects as go
 from scipy.optimize import minimize, differential_evolution, linprog
 
-# ─── Page config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="MenuProfit Pro",
     page_icon="🍽️",
@@ -34,10 +24,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ─── CSS ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 *,html,body{box-sizing:border-box}
 html,body,[class*="css"]{font-family:'DM Sans',sans-serif;font-size:14px}
 [data-testid="stAppViewContainer"]{background:#070910;color:#DEE2F0}
@@ -66,12 +55,12 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;font-size:14px}
 .kpi-l{font-size:.65rem;color:#3E4A6A;text-transform:uppercase;letter-spacing:.09em;margin-bottom:5px}
 .kpi-v{font-size:1.5rem;font-weight:600;line-height:1.1}
 .kpi-s{font-size:.65rem;color:#2E3858;margin-top:3px}
-.gold{color:#D2A248}.green{color:#35C886}.red{color:#DC4545}.blue{color:#5498F2}.white{color:#C0C8E0}.purple{color:#9B6CF5}
+.gold{color:#D2A248}.green{color:#35C886}.red{color:#DC4545}.blue{color:#5498F2}.white{color:#C0C8E0}
 .ibox{background:#0C1020;border:1px solid rgba(84,152,242,.18);border-radius:9px;
   padding:13px 16px;margin:.4rem 0 1rem;font-size:.81rem;line-height:1.7;color:#7A90B8}
 .ibox strong{color:#5498F2}
 .rec{border-radius:10px;padding:14px 17px;margin-bottom:10px;background:#0C1020;
-  border:1px solid rgba(255,255,255,.06);border-left:3px solid #D2A248;position:relative}
+  border:1px solid rgba(255,255,255,.06);border-left:3px solid #D2A248}
 .rec.crit{border-left-color:#DC4545}
 .rec.high{border-left-color:#F0A030}
 .rec.med{border-left-color:#35C886}
@@ -85,16 +74,9 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;font-size:14px}
 .rec-cat.b{background:rgba(240,160,48,.12);color:#F0A030}
 .rec-dish{font-size:.72rem;color:#4A5578;font-style:italic}
 .rec-imp{margin-left:auto;font-size:.76rem;font-weight:700;color:#35C886}
-.rec-imp.neg{color:#DC4545}
 .rec-title{font-weight:600;font-size:.93rem;color:#DEE2F0;margin-bottom:4px}
 .rec-insight{font-size:.80rem;color:#6070A0;line-height:1.65;margin-bottom:6px}
 .rec-action{font-size:.80rem;color:#D2A248;font-weight:500}
-.rec-or{font-size:.65rem;color:#2A3550;margin-top:6px;font-style:italic}
-.alert{border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:.82rem;line-height:1.6;
-  border-left:3px solid #D2A248;background:rgba(210,162,72,.05)}
-.alert.r{border-color:#DC4545;background:rgba(220,69,69,.05)}
-.alert.g{border-color:#35C886;background:rgba(53,200,134,.04)}
-.alert.b{border-color:#5498F2;background:rgba(84,152,242,.05)}
 .tip{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:8px;
   padding:8px 13px;font-size:.77rem;color:#3E4A6A;margin:.3rem 0 1rem}
 .stButton>button{background:linear-gradient(135deg,#9B7018,#D2A248)!important;color:#07090E!important;
@@ -102,8 +84,6 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;font-size:14px}
   padding:10px 22px!important;font-size:.88rem!important;width:100%!important;
   letter-spacing:.02em!important;transition:opacity .15s}
 .stButton>button:hover{opacity:.88!important}
-[data-testid="stMetric"]{background:rgba(10,12,22,.9);border-radius:10px;
-  border:1px solid rgba(255,255,255,.06);padding:10px!important}
 .psummary{display:flex;gap:10px;margin-bottom:1.2rem;flex-wrap:wrap}
 .pchip{flex:1 1 120px;text-align:center;border-radius:9px;padding:10px 14px}
 .pchip.crit{background:rgba(220,69,69,.1);border:1px solid rgba(220,69,69,.25)}
@@ -117,7 +97,7 @@ html,body,[class*="css"]{font-family:'DM Sans',sans-serif;font-size:14px}
 </style>
 """, unsafe_allow_html=True)
 
-# ─── Constants ────────────────────────────────────────────────────────────────
+# ── Constants ─────────────────────────────────────────────────────────────────
 DARK = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
@@ -125,50 +105,65 @@ DARK = dict(
     font=dict(family="DM Sans", color="#7A8AB0"),
     margin=dict(l=14, r=14, t=38, b=14),
 )
+# Disable click-to-expand on all charts
+NO_EXPAND = dict(
+    dragmode=False,
+)
 GOLD="#D2A248"; GREEN="#35C886"; RED="#DC4545"; BLUE="#5498F2"; PURPLE="#9B6CF5"; AMBER="#F0A030"
 QUAD_C={"Star":GOLD,"Puzzle":BLUE,"Plow Horse":GREEN,"Dog":RED}
 QUAD_I={"Star":"⭐","Puzzle":"🧩","Plow Horse":"🐎","Dog":"🐕"}
 
-# ─── Default data ─────────────────────────────────────────────────────────────
+CHART_CFG = dict(
+    config={
+        "displayModeBar": False,
+        "scrollZoom": False,
+        "doubleClick": False,
+        "showTips": False,
+    }
+)
+
+# ── Default data ──────────────────────────────────────────────────────────────
 DEFAULT = {
-    "Dish":               ["Wagyu Burger","Truffle Pasta","Caesar Salad","Espresso Martini",
-                           "Lava Cake","House Wine","Grilled Salmon","Garlic Bread"],
-    "Category":           ["Mains","Mains","Starters","Drinks","Desserts","Drinks","Mains","Starters"],
-    "Ingredient ($)":     [8.50, 6.20, 2.80, 1.90, 2.40, 3.20, 9.80, 0.80],
-    "Price ($)":          [24.00,22.00,14.00,16.00,12.00,11.00,28.00, 7.00],
-    "Sold/Wk":            [120,   85,  200,  180,   90,  250,   70, 160],
-    "Prep (min)":         [  8,   10,    2,    1,    5,    0,   10,   2],
-    "Cook (min)":         [ 12,   15,    5,    3,    8,    2,   18,   4],
-    "Table Time (min)":   [ 35,   40,   15,   20,   25,   10,   45,  10],
-    "Wastage %":          [  8,   12,    5,    3,    6,    2,   10,   4],
-    "Labour $/hr":        [ 30,   30,   30,   25,   30,   25,   32,  28],
-    "Elasticity":         [-1.2, -1.0, -0.8, -0.6, -1.1, -0.9, -1.3,-0.7],
-    "Stock":              [120,   80,  300,  200,  100,  400,   60, 250],
-    "Reorder Pt":         [ 40,   30,  100,   60,   30,  100,   20,  80],
-    "Lead Days":          [  2,    3,    1,    2,    2,    3,    2,   1],
-    "Order Cost ($)":     [ 15,   20,   10,   12,   10,   18,   25,   8],
-    "Hold Cost %/yr":     [ 25,   20,   30,   15,   30,   15,   25,  20],
-    "Rating":             [4.7,  4.4,  4.2,  4.6,  4.8,  3.9,  4.5, 4.1],
-    "Bundle Attach %":    [ 35,   22,   18,   40,   25,   30,   20,  45],
+    "Dish":             ["Wagyu Burger","Truffle Pasta","Caesar Salad","Espresso Martini",
+                         "Lava Cake","House Wine","Grilled Salmon","Garlic Bread"],
+    "Category":         ["Mains","Mains","Starters","Drinks","Desserts","Drinks","Mains","Starters"],
+    "Ingredient ($)":   [8.50, 6.20, 2.80, 1.90, 2.40, 3.20, 9.80, 0.80],
+    "Price ($)":        [24.00,22.00,14.00,16.00,12.00,11.00,28.00, 7.00],
+    "Sold/Wk":          [120,   85,  200,  180,   90,  250,   70, 160],
+    "Prep (min)":       [  8,   10,    2,    1,    5,    0,   10,   2],
+    "Cook (min)":       [ 12,   15,    5,    3,    8,    2,   18,   4],
+    "Table Time (min)": [ 35,   40,   15,   20,   25,   10,   45,  10],
+    "Wastage %":        [  8,   12,    5,    3,    6,    2,   10,   4],
+    "Labour $/hr":      [ 30,   30,   30,   25,   30,   25,   32,  28],
+    "Elasticity":       [-1.2,-1.0, -0.8, -0.6, -1.1, -0.9, -1.3,-0.7],
+    "Stock":            [120,   80,  300,  200,  100,  400,   60, 250],
+    "Reorder Pt":       [ 40,   30,  100,   60,   30,  100,   20,  80],
+    "Lead Days":        [  2,    3,    1,    2,    2,    3,    2,   1],
+    "Order Cost ($)":   [ 15,   20,   10,   12,   10,   18,   25,   8],
+    "Hold Cost %/yr":   [ 25,   20,   30,   15,   30,   15,   25,  20],
+    "Rating":           [4.7,  4.4,  4.2,  4.6,  4.8,  3.9,  4.5, 4.1],
+    "Bundle Attach %":  [ 35,   22,   18,   40,   25,   30,   20,  45],
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  OR MATH ENGINE
+#  MATH ENGINE
 # ═════════════════════════════════════════════════════════════════════════════
 
 def true_cost(row):
-    real_food = row["Ingredient ($)"] * (1 + row["Wastage %"] / 100)
-    labour    = (row["Prep (min)"] + row["Cook (min)"]) / 60 * row["Labour $/hr"]
-    return round(real_food + labour, 2)
+    """Real cost = ingredient cost after waste + staff time cost."""
+    food   = row["Ingredient ($)"] * (1 + row["Wastage %"] / 100)
+    labour = (row["Prep (min)"] + row["Cook (min)"]) / 60 * row["Labour $/hr"]
+    return round(food + labour, 2)
 
 def true_margin_pct(price, tc):
     return (price - tc) / price * 100 if price > 0 else 0
 
 def profit_per_min(price, tc, prep, cook):
-    total_t = prep + cook
-    return (price - tc) / total_t if total_t > 0 else 0
+    t = prep + cook
+    return (price - tc) / t if t > 0 else 0
 
 def demand(p_new, p_base, qty_base, elast):
+    """How many we sell at a new price, based on price sensitivity."""
     if p_new <= 0: return 0.0
     return float(qty_base) * (p_new / float(p_base)) ** float(elast)
 
@@ -181,6 +176,10 @@ def total_net_profit(prices, rows, fixed):
     return sum(weekly_profit_item(prices[i], rows[i]) for i in range(len(rows))) - fixed
 
 def run_lp(df, kitchen_mins, ing_budget):
+    """
+    Find the best mix of dishes to serve given kitchen time and budget limits.
+    Shadow prices tell us how much more profit we get by relaxing each limit.
+    """
     tc      = df.apply(true_cost, axis=1).values
     cm      = (df["Price ($)"].values - tc).clip(min=0)
     total_t = (df["Prep (min)"] + df["Cook (min)"]).values
@@ -194,15 +193,16 @@ def run_lp(df, kitchen_mins, ing_budget):
     res = linprog(-cm, A_ub=A_ub, b_ub=b_ub,
                   bounds=[(0.0, q) for q in qtys], method="highs")
 
-    sh_kitchen = sh_budget = sh_seating = 0.0
+    sh_k = sh_b = sh_s = 0.0
     if res.status == 0 and hasattr(res, "ineqlin") and res.ineqlin is not None:
         m = res.ineqlin.marginals
         if m is not None and len(m) >= 3:
-            sh_kitchen, sh_budget, sh_seating = abs(m[0]), abs(m[1]), abs(m[2])
+            sh_k, sh_b, sh_s = abs(m[0]), abs(m[1]), abs(m[2])
 
-    return res, sh_kitchen, sh_budget, sh_seating
+    return res, sh_k, sh_b, sh_s
 
 def optimise_prices(rows, fixed, min_mg=0.28, max_up=0.35):
+    """Find the best prices for each dish to earn the most weekly profit."""
     tcs    = [true_cost(r) for r in rows]
     bounds = [
         (max(r["Price ($)"] * 0.85, tc * (1 + min_mg)),
@@ -210,7 +210,6 @@ def optimise_prices(rows, fixed, min_mg=0.28, max_up=0.35):
         for r, tc in zip(rows, tcs)
     ]
     p0 = np.array([r["Price ($)"] for r in rows])
-
     r1 = minimize(lambda p: -total_net_profit(p, rows, fixed), p0,
                   bounds=bounds, method="L-BFGS-B",
                   options={"ftol": 1e-12, "maxiter": 2000})
@@ -219,6 +218,10 @@ def optimise_prices(rows, fixed, min_mg=0.28, max_up=0.35):
     return (r2.x, -r2.fun) if -r2.fun >= -r1.fun else (r1.x, -r1.fun)
 
 def eoq_model(row, demand_sigma_pct=0.15, service_z=1.645):
+    """
+    Work out the best order size so you never run out but don't over-order.
+    EOQ = the amount to order each time to keep costs lowest.
+    """
     D  = row["Sold/Wk"] * 52
     S  = row["Order Cost ($)"]
     H  = row["Ingredient ($)"] * row["Hold Cost %/yr"] / 100
@@ -228,16 +231,15 @@ def eoq_model(row, demand_sigma_pct=0.15, service_z=1.645):
     orders_pa  = D / eoq_qty
     cycle_days = 365 / orders_pa
 
-    sigma_wk   = row["Sold/Wk"] * demand_sigma_pct
-    lt_weeks   = row["Lead Days"] / 7
-    ss         = service_z * sigma_wk * math.sqrt(lt_weeks)
-    rop        = (row["Sold/Wk"] / 7 * row["Lead Days"]) + ss
+    sigma_wk = row["Sold/Wk"] * demand_sigma_pct
+    lt_weeks = row["Lead Days"] / 7
+    ss       = service_z * sigma_wk * math.sqrt(lt_weeks)
+    rop      = (row["Sold/Wk"] / 7 * row["Lead Days"]) + ss
 
-    annual_order_cost_curr = orders_pa * S
     hold_curr  = (row["Reorder Pt"] / 2) * H
     hold_eoq   = (eoq_qty / 2) * H
     orders_eoq = (D / eoq_qty) * S
-    saving_pa  = (hold_curr + annual_order_cost_curr) - (hold_eoq + orders_eoq)
+    saving_pa  = (hold_curr + orders_pa * S) - (hold_eoq + orders_eoq)
 
     return {
         "eoq":          round(eoq_qty, 0),
@@ -275,10 +277,13 @@ def classify_menu(df):
     df["Type"] = df.apply(quad, axis=1)
     return df, avg_p, avg_q
 
-# ── FIXED: all numpy, no pandas Series in arithmetic ─────────────────────────
 def monte_carlo(df, fixed=0, n=8000, sigma=0.15):
-    tc   = df.apply(true_cost, axis=1).values          # numpy array
-    cm   = (df["Price ($)"].values - tc).clip(min=0)   # numpy array — FIX
+    """
+    Run 8,000 random demand scenarios to see the range of possible profits.
+    P5 = a bad week. P50 = a normal week. P95 = a great week.
+    """
+    tc   = df.apply(true_cost, axis=1).values
+    cm   = (df["Price ($)"].values - tc).clip(min=0)
     qtys = df["Sold/Wk"].values.astype(float)
 
     rng  = np.random.default_rng(42)
@@ -286,19 +291,24 @@ def monte_carlo(df, fixed=0, n=8000, sigma=0.15):
     prof = (sim * cm).sum(axis=1) - fixed
 
     return {
-        "mean": prof.mean(), "p5":  np.percentile(prof,  5),
-        "p25":  np.percentile(prof, 25), "p50": np.percentile(prof, 50),
-        "p75":  np.percentile(prof, 75), "p95": np.percentile(prof, 95),
-        "sims": prof, "std": prof.std(),
+        "mean": prof.mean(),
+        "p5":   np.percentile(prof,  5),
+        "p25":  np.percentile(prof, 25),
+        "p50":  np.percentile(prof, 50),
+        "p75":  np.percentile(prof, 75),
+        "p95":  np.percentile(prof, 95),
+        "sims": prof,
+        "std":  prof.std(),
     }
 
 def kitchen_analysis(df, available_mins):
-    total_t  = (df["Prep (min)"] + df["Cook (min)"]) * df["Sold/Wk"]
-    load     = total_t.sum()
-    util     = load / available_mins if available_mins > 0 else 0
-    tc_vals  = df.apply(true_cost, axis=1)
-    pm       = ((df["Price ($)"].values - tc_vals.values) /
-                (df["Prep (min)"].values + df["Cook (min)"].values + 0.01))
+    """How busy is the kitchen and which dish takes the most time."""
+    total_t    = (df["Prep (min)"] + df["Cook (min)"]) * df["Sold/Wk"]
+    load       = total_t.sum()
+    util       = load / available_mins if available_mins > 0 else 0
+    tc_vals    = df.apply(true_cost, axis=1).values
+    cook_time  = df["Prep (min)"].values + df["Cook (min)"].values + 0.01
+    pm         = (df["Price ($)"].values - tc_vals) / cook_time
     bottleneck = df.iloc[total_t.values.argmax()]["Dish"]
 
     return {
@@ -307,28 +317,32 @@ def kitchen_analysis(df, available_mins):
         "util_pct":      min(util * 100, 100),
         "seating_load":  (df["Table Time (min)"] * df["Sold/Wk"]).sum(),
         "bottleneck":    bottleneck,
-        "profit_per_min": np.array(pm),
+        "profit_per_min":np.array(pm),
         "dish_loads":    total_t.values,
     }
 
 def markov_ltv(rating, avg_weekly_contribution, weekly_visits=1.0, discount_rate_annual=0.10):
-    p_retain  = min(0.96, max(0.30, 0.46 + (rating - 1.0) * 0.125))
-    r_weekly  = discount_rate_annual / 52
-    expected_visits = p_retain / (1 - p_retain + r_weekly)
-    clv = avg_weekly_contribution * expected_visits * weekly_visits
+    """
+    Estimate how much a happy customer is worth over their lifetime.
+    Higher rating = more likely to come back = higher value.
+    """
+    p_retain = min(0.96, max(0.30, 0.46 + (rating - 1.0) * 0.125))
+    r_weekly = discount_rate_annual / 52
+    visits   = p_retain / (1 - p_retain + r_weekly)
+    clv      = avg_weekly_contribution * visits * weekly_visits
     return round(clv, 0), round(p_retain * 100, 1)
 
 def calc_fin(df, eng_df, fixed):
-    pool   = eng_df["Wk True Profit ($)"].sum()
-    rev    = (df["Price ($)"].values * df["Sold/Wk"].values).sum()
-    covers = df["Sold/Wk"].sum()
-    net    = pool - fixed
-    avg_cm = pool / covers if covers else 0
-    bep    = fixed / avg_cm if avg_cm > 0 else float("inf")
-    surplus= covers - bep
-    safety = net / pool * 100 if pool > 0 else 0
-    fc_pct = eng_df["Food Cost %"].mean()
-    ing_only=(df["Ingredient ($)"].values * df["Sold/Wk"].values).sum() / rev * 100 if rev > 0 else 0
+    pool    = eng_df["Wk True Profit ($)"].sum()
+    rev     = (df["Price ($)"].values * df["Sold/Wk"].values).sum()
+    covers  = df["Sold/Wk"].sum()
+    net     = pool - fixed
+    avg_cm  = pool / covers if covers else 0
+    bep     = fixed / avg_cm if avg_cm > 0 else float("inf")
+    surplus = covers - bep
+    safety  = net / pool * 100 if pool > 0 else 0
+    fc_pct  = eng_df["Food Cost %"].mean()
+    ing_only= (df["Ingredient ($)"].values * df["Sold/Wk"].values).sum() / rev * 100 if rev > 0 else 0
     return dict(
         pool=pool, rev=rev, net=net, monthly=net*4.33, annual=net*52,
         covers=covers, avg_cm=avg_cm, bep=bep, surplus=surplus,
@@ -336,7 +350,7 @@ def calc_fin(df, eng_df, fixed):
     )
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  RECOMMENDATION ENGINE
+#  RECOMMENDATIONS
 # ═════════════════════════════════════════════════════════════════════════════
 
 @dataclass
@@ -348,7 +362,6 @@ class Rec:
     insight:  str
     action:   str
     impact:   float
-    or_ref:   str
 
 def generate_recommendations(df, eng_df, fin, opt_prices, sh_k, sh_b, sh_s,
                               mc, eoq_data, kitchen, fixed,
@@ -370,48 +383,42 @@ def generate_recommendations(df, eng_df, fin, opt_prices, sh_k, sh_b, sh_s,
 
         if margin < 20:
             recs.append(Rec("Pricing", 1, row["Dish"],
-                f"Price is below true cost — margin only {margin:.1f}%",
-                f"After accounting for {row['Wastage %']}% wastage and "
-                f"{(row['Prep (min)']+row['Cook (min)']):.0f} min of labour "
-                f"(${tc:.2f} true cost), your margin is {margin:.1f}% — dangerously thin.",
-                f"Raise price to at least ${tc * 1.30:.2f} to reach a 23% true margin.",
-                max(0, uplift) + 20,
-                "LP shadow price analysis + True cost model (Taha Ch. 2–3, 10)"))
+                f"You are losing money on this dish — profit is only {margin:.1f}%",
+                f"After counting {row['Wastage %']}% food waste and "
+                f"{(row['Prep (min)']+row['Cook (min)']):.0f} min of staff time, "
+                f"the real cost is ${tc:.2f}. Your margin is dangerously low.",
+                f"Raise the price to at least ${tc * 1.30:.2f} to reach a safe profit level.",
+                max(0, uplift) + 20))
 
         elif pct_chg > 3 and uplift > 15:
             pri = 1 if uplift > 80 else (2 if uplift > 30 else 3)
             demand_drop = abs((demand(p_o, p_c, row["Sold/Wk"], row["Elasticity"]) - row["Sold/Wk"]) /
                               row["Sold/Wk"] * 100)
             recs.append(Rec("Pricing", pri, row["Dish"],
-                f"Raise price ${p_c:.2f}→${p_o:.2f}, earn +${uplift:.0f}/wk",
-                f"The price-elasticity model (ε={row['Elasticity']}) estimates demand falls by only "
-                f"{demand_drop:.1f}% at the new price, but each unit earns ${p_o-tc:.2f} vs "
-                f"${p_c-tc:.2f} — a net gain.",
-                f"Update menu price to ${p_o:.2f} (+{pct_chg:.1f}%). Expected +${uplift:.0f}/week.",
-                uplift,
-                "Price elasticity demand model + Differential evolution optimiser (Taha Ch. 10)"))
+                f"Raise price from ${p_c:.2f} to ${p_o:.2f} — earn +${uplift:.0f} more per week",
+                f"Customers are not very price-sensitive on this dish. "
+                f"Demand would only drop by about {demand_drop:.1f}% but each sale earns more. "
+                f"The net result is more profit per week.",
+                f"Change the menu price to ${p_o:.2f} (+{pct_chg:.1f}%). Expected gain: +${uplift:.0f}/week.",
+                uplift))
 
         if fc_p > 38:
             fix_price = tc / 0.60
             recs.append(Rec("Pricing", 1, row["Dish"],
-                f"Food cost {fc_p:.0f}% — renegotiate or reprice",
-                f"True food cost (including {row['Wastage %']}% wastage) is {fc_p:.0f}% of revenue. "
-                f"Industry target is <32%. Shadow price of kitchen time is ${sh_k:.2f}/min.",
-                f"Raise price to ${fix_price:.2f} (target 40% FC) or reduce ingredient cost by "
-                f"${tc - row['Price ($)'] * 0.38:.2f}.",
-                (fix_price - p_c) * row["Sold/Wk"],
-                "LP constraint analysis + True cost model (Taha Ch. 3, 13)"))
+                f"Food cost is too high at {fc_p:.0f}% — target is under 32%",
+                f"The real cost of this dish (including {row['Wastage %']}% waste) is "
+                f"{fc_p:.0f}% of what you charge. That leaves very little room for profit.",
+                f"Either raise the price to ${fix_price:.2f} or cut ingredient cost by "
+                f"${tc - row['Price ($)'] * 0.38:.2f} per dish.",
+                (fix_price - p_c) * row["Sold/Wk"]))
 
         if row["Rating"] >= 4.6 and pct_chg < 2:
             recs.append(Rec("Pricing", 3, row["Dish"],
-                f"Rating {row['Rating']} — room for premium pricing",
-                f"Markov retention analysis shows customers with a {row['Rating']}-star experience "
-                f"have high repeat-visit probability (~{min(96, 46 + int((row['Rating']-1)*12.5))}%). "
-                f"Premium-rated dishes carry pricing power that the elasticity model confirms.",
-                f"Test a $0.50–$1.00 price increase. At current demand, "
-                f"+$0.75 = +${0.75*row['Sold/Wk']:.0f}/wk.",
-                0.75 * row["Sold/Wk"],
-                "Markov CLV model + Elasticity pricing (Taha Ch. 10, 17)"))
+                f"Customers love this dish (rating {row['Rating']}) — small price rise is safe",
+                f"High-rated dishes keep customers coming back. "
+                f"A small price increase is unlikely to put people off.",
+                f"Try adding $0.75. At current demand that adds +${0.75*row['Sold/Wk']:.0f}/week.",
+                0.75 * row["Sold/Wk"]))
 
     # ── INVENTORY ─────────────────────────────────────────────────────────
     for i, row in enumerate(rows):
@@ -419,64 +426,57 @@ def generate_recommendations(df, eng_df, fin, opt_prices, sh_k, sh_b, sh_s,
 
         if eq["stockout"]:
             recs.append(Rec("Inventory", 1, row["Dish"],
-                f"Stockout risk — stock ({int(row['Stock'])}) below ROP ({int(eq['rop'])})",
-                f"With {row['Lead Days']} days lead time and weekly demand of {row['Sold/Wk']}, "
-                f"you need {eq['rop']:.0f} units before ordering (includes {eq['safety_stock']:.0f} "
-                f"safety stock at 95% service level). Current stock of {int(row['Stock'])} is below this.",
-                f"Order {int(eq['eoq'])} units immediately (EOQ). Next order in {eq['cycle_days']:.0f} days.",
-                row["Price ($)"] * row["Sold/Wk"] * (row["Lead Days"] / 7),
-                "EOQ + Safety stock model (Taha Ch. 13)"))
+                f"Risk of running out — stock ({int(row['Stock'])}) is below safe level ({int(eq['rop'])})",
+                f"With {row['Lead Days']} days to get a delivery and selling {row['Sold/Wk']} per week, "
+                f"you need at least {eq['rop']:.0f} units in stock before you order more. "
+                f"You only have {int(row['Stock'])} — order now.",
+                f"Order {int(eq['eoq'])} units right away. Next order in {eq['cycle_days']:.0f} days.",
+                row["Price ($)"] * row["Sold/Wk"] * (row["Lead Days"] / 7)))
 
         elif eq["overstock"]:
             hold_excess = (row["Stock"] - eq["eoq"] * 1.2) * row["Ingredient ($)"] * row["Hold Cost %/yr"] / 100 / 52
             recs.append(Rec("Inventory", 3, row["Dish"],
-                f"Overstock — holding cost ~${hold_excess:.0f}/wk",
-                f"Current stock ({int(row['Stock'])} units) is over 2× EOQ ({int(eq['eoq'])}). "
-                f"Excess inventory ties up capital at {row['Hold Cost %/yr']}% annual holding cost.",
-                f"Reduce next order. Target {int(eq['eoq'])} units per cycle, every {eq['cycle_days']:.0f} days.",
-                hold_excess,
-                "EOQ inventory model — holding cost minimisation (Taha Ch. 13)"))
+                f"Too much stock — you are paying to store it",
+                f"You have {int(row['Stock'])} units but the ideal amount to order is only "
+                f"{int(eq['eoq'])}. Extra stock costs money to store every week.",
+                f"Order less next time. Aim for {int(eq['eoq'])} units every {eq['cycle_days']:.0f} days.",
+                hold_excess))
 
         if eq["annual_saving"] > 50:
             recs.append(Rec("Inventory", 2, row["Dish"],
-                f"Switch to EOQ ordering — save ${eq['annual_saving']/52:.0f}/wk",
-                f"Your current reorder quantity differs from the optimal EOQ of {int(eq['eoq'])} units. "
-                f"The EOQ balances ordering cost (${row['Order Cost ($)']}) against holding cost "
-                f"({row['Hold Cost %/yr']}%/yr), saving ${eq['annual_saving']:.0f}/year.",
-                f"Set standing order for {int(eq['eoq'])} units every {eq['cycle_days']:.0f} days.",
-                eq["annual_saving"] / 52,
-                "Economic Order Quantity formula √(2DS/H) (Taha Ch. 13)"))
+                f"Change your order pattern — save ${eq['annual_saving']/52:.0f}/week",
+                f"The ideal order size for this dish is {int(eq['eoq'])} units. "
+                f"Ordering this amount each time balances delivery costs vs storage costs, "
+                f"saving ${eq['annual_saving']:.0f} per year.",
+                f"Place a standing order for {int(eq['eoq'])} units every {eq['cycle_days']:.0f} days.",
+                eq["annual_saving"] / 52))
 
     # ── MENU ENGINEERING ──────────────────────────────────────────────────
-    for i, row in enumerate(eng_df.iterrows()):
-        _, row = row
+    for i, (_, row) in enumerate(eng_df.iterrows()):
         t = row["Type"]
 
         if t == "Dog":
             kitchen_freed = (row["Prep (min)"] + row["Cook (min)"]) * row["Sold/Wk"]
             opportunity   = kitchen_freed * sh_k
             recs.append(Rec("Menu", 1, row["Dish"],
-                f"Dog: low profit + low demand — consider removal",
-                f"Menu engineering matrix places {row['Dish']} in the Dog quadrant: "
-                f"below-average profit (${row['True Profit ($)']:.2f}/dish) AND below-average "
-                f"orders ({row['Sold/Wk']:.0f}/wk). Kitchen time freed = ${opportunity:.0f}/wk.",
-                f"Replace with a Puzzle-converted item or bundle with a Star. "
-                f"Removing frees ~${opportunity:.0f}/wk in kitchen capacity.",
-                opportunity,
-                "Menu engineering quadrant analysis (Taha Ch. 15 Decision Analysis)"))
+                f"This dish has low profit AND low sales — consider removing it",
+                f"{row['Dish']} earns only ${row['True Profit ($)']:.2f} per sale and sells just "
+                f"{row['Sold/Wk']:.0f} times a week — both below average. "
+                f"Kitchen time freed up could go to your better dishes.",
+                f"Remove this dish or replace it. Freeing the kitchen time could be worth ~${opportunity:.0f}/week.",
+                opportunity))
 
         elif t == "Puzzle":
-            target_qty    = eng_df["Sold/Wk"].mean() * 0.9
-            revenue_lift  = max(0, (target_qty - row["Sold/Wk"]) * row["True Profit ($)"])
+            target_qty   = eng_df["Sold/Wk"].mean() * 0.9
+            revenue_lift = max(0, (target_qty - row["Sold/Wk"]) * row["True Profit ($)"])
             recs.append(Rec("Menu", 2, row["Dish"],
-                f"Puzzle: great margin but underordered — promote",
-                f"{row['Dish']} earns ${row['True Profit ($)']:.2f}/dish (above average) but sells "
-                f"only {row['Sold/Wk']:.0f}/wk. Reaching average ({target_qty:.0f}/wk) adds "
-                f"${revenue_lift:.0f}/wk.",
-                f"Feature on specials board, add photo, train staff to upsell. "
-                f"Target: +{max(0, target_qty-row['Sold/Wk']):.0f} orders/wk.",
-                revenue_lift,
-                "Menu engineering quadrant (Taha Ch. 15) + Demand analysis"))
+                f"Good profit but not enough people order it — promote it",
+                f"{row['Dish']} earns ${row['True Profit ($)']:.2f} per sale (above average) "
+                f"but only sells {row['Sold/Wk']:.0f} times a week. "
+                f"If it reached normal sales levels, you'd earn ${revenue_lift:.0f} more per week.",
+                f"Put it on the specials board, add a photo, or ask staff to mention it. "
+                f"Aim for {max(0, target_qty-row['Sold/Wk']):.0f} more orders per week.",
+                revenue_lift))
 
         elif t == "Plow Horse":
             p_test = row["Price ($)"] * 1.07
@@ -484,14 +484,12 @@ def generate_recommendations(df, eng_df, fin, opt_prices, sh_k, sh_b, sh_s,
             extra  = (p_test - tc_val - (row["Price ($)"] - tc_val)) * row["Sold/Wk"] * 0.92
             if extra > 0:
                 recs.append(Rec("Menu", 2, row["Dish"],
-                    f"Plow Horse: popular but thin margin — small price lift",
-                    f"{row['Dish']} sells {row['Sold/Wk']:.0f}/wk (above average) but margin is "
-                    f"only {row['True Margin %']:.1f}%. Elasticity (ε={row['Elasticity']}) shows "
-                    f"a 7% price increase drops demand by only ~{abs(row['Elasticity'])*7:.1f}%.",
-                    f"Raise price by $0.50–$1.00. At ${row['Price ($)']+0.75:.2f}, "
-                    f"est. +${extra:.0f}/wk.",
-                    extra,
-                    "Plow Horse strategy + price elasticity model (Taha Ch. 10, 15)"))
+                    f"Very popular but low profit — a small price rise will help",
+                    f"{row['Dish']} sells {row['Sold/Wk']:.0f} times a week (above average) "
+                    f"but the profit per sale is only {row['True Margin %']:.1f}%. "
+                    f"A 7% price rise would only reduce orders by a small amount.",
+                    f"Raise the price by $0.50–$1.00. At ${row['Price ($)']+0.75:.2f} you'd earn +${extra:.0f}/week.",
+                    extra))
 
         elif t == "Star":
             premium_p = row["Price ($)"] * 1.10
@@ -499,94 +497,83 @@ def generate_recommendations(df, eng_df, fin, opt_prices, sh_k, sh_b, sh_s,
             extra     = (premium_p - tc_val - (row["Price ($)"] - tc_val)) * row["Sold/Wk"] * 0.95
             clv_val   = markov_ltv(row["Rating"], row["True Profit ($)"])[0]
             recs.append(Rec("Menu", 3, row["Dish"],
-                f"Star: protect quality, explore premium variant",
-                f"{row['Dish']} is your highest-performing dish. Markov CLV model shows "
-                f"high-rated Stars retain customers worth ${clv_val:,.0f} lifetime value each.",
-                f"Consider a 'Premium {row['Dish']}' at ${premium_p:.2f}. "
-                f"If 20% of orders upgrade, +${extra*0.2:.0f}/wk.",
-                extra * 0.2,
-                "Star quadrant strategy + Markov CLV (Taha Ch. 15, 17)"))
+                f"Your best dish — keep quality high and consider a premium version",
+                f"{row['Dish']} is top in both profit and popularity. "
+                f"Customers who enjoy it are worth an estimated ${clv_val:,.0f} in repeat visits.",
+                f"Consider a 'Premium {row['Dish']}' option at ${premium_p:.2f}. "
+                f"If 20% of buyers upgrade, that adds +${extra*0.2:.0f}/week.",
+                extra * 0.2))
 
     # ── OPERATIONS ────────────────────────────────────────────────────────
     util_pct = kitchen["util_pct"]
 
     if util_pct > 85:
         recs.append(Rec("Operations", 1, "Kitchen",
-            f"Kitchen at {util_pct:.0f}% — near maximum capacity",
-            f"Queuing theory (M/G/1 model, Taha Ch. 18) shows above 80% utilisation, "
-            f"wait times grow exponentially. At {util_pct:.0f}%, throughput quality degrades.",
-            f"Drop the two lowest Profit/Min dishes, or add 1 kitchen staff to extend "
-            f"capacity by ~40 min/shift, worth ${sh_k * 40:.0f} in additional profit.",
-            sh_k * 40,
-            "M/G/1 queuing model — utilisation threshold (Taha Ch. 18)"))
+            f"Kitchen is at {util_pct:.0f}% capacity — things will slow down soon",
+            f"When a kitchen goes above 80% busy, wait times grow fast and quality drops. "
+            f"At {util_pct:.0f}% you are already at risk of delays and unhappy customers.",
+            f"Remove your two least profitable dishes, or add a staff member to handle more orders. "
+            f"Each extra minute of kitchen time is worth about ${sh_k:.2f} in profit.",
+            sh_k * 40))
 
     elif util_pct < 50:
-        idle_mins = available_kitchen_mins * 0.6 - kitchen["load_mins"]
+        idle_mins = max(0, available_kitchen_mins * 0.6 - kitchen["load_mins"])
         recs.append(Rec("Operations", 3, "Kitchen",
-            f"Kitchen only {util_pct:.0f}% utilised — add higher-margin items",
-            f"Your kitchen has capacity headroom. Each idle kitchen minute is worth "
-            f"${sh_k:.2f} in potential profit (shadow price).",
-            f"Add 2–3 high-profit-per-minute items. "
-            f"Target dishes earning >${eng_df['Profit/Min ($)'].quantile(0.75):.2f}/min.",
-            sh_k * max(0, idle_mins) / 60 * 0.5,
-            "Kitchen shadow price + LP capacity analysis (Taha Ch. 2–3, 18)"))
+            f"Kitchen is only {util_pct:.0f}% busy — you have room to grow",
+            f"Your kitchen has spare time. You could be earning more without adding staff.",
+            f"Add 2–3 new dishes with high profit per minute to fill the spare kitchen time.",
+            sh_k * idle_mins / 60 * 0.5))
 
     bn = kitchen["bottleneck"]
     recs.append(Rec("Operations", 2, bn,
-        f"'{bn}' is your kitchen bottleneck",
-        f"This dish consumes the most kitchen minutes per week. A prep-time reduction of "
-        f"2 min per order frees {eng_df.shape[0] * 2:.0f}+ kitchen minutes per week, "
-        f"worth ${sh_k * eng_df.shape[0] * 2:.0f} at current shadow price.",
-        f"Batch-prep {bn} components during off-peak hours. Target: cut prep by 2–3 min/order.",
-        sh_k * eng_df.shape[0] * 2,
-        "Bottleneck analysis + kitchen shadow price (Taha Ch. 18, 3)"))
+        f"'{bn}' takes the most kitchen time each week",
+        f"This dish uses up more kitchen minutes than any other. "
+        f"Even saving 2 minutes per order would free up {eng_df.shape[0] * 2:.0f}+ minutes a week.",
+        f"Prepare parts of {bn} in advance during quiet times. Aim to save 2–3 min per order.",
+        sh_k * eng_df.shape[0] * 2))
 
     pm_thresh = eng_df["Profit/Min ($)"].quantile(0.25)
     for _, row in eng_df[eng_df["Profit/Min ($)"] < pm_thresh].iterrows():
         if row["Dish"] == bn: continue
         recs.append(Rec("Operations", 3, row["Dish"],
-            f"Low efficiency: ${row['Profit/Min ($)']:.2f}/min cook time",
-            f"At ${row['Profit/Min ($)']:.2f}/kitchen-minute, {row['Dish']} is in the bottom "
-            f"quartile. The shadow price of kitchen time is ${sh_k:.2f}/min.",
-            f"Simplify recipe or pre-portion to cut {row['Prep (min)']+row['Cook (min)']:.0f} "
-            f"min by 20%. Frees ${sh_k*(row['Prep (min)']+row['Cook (min)'])*0.2*row['Sold/Wk']:.0f}/wk.",
-            sh_k * (row["Prep (min)"] + row["Cook (min)"]) * 0.15 * row["Sold/Wk"],
-            "Kitchen efficiency + LP shadow price (Taha Ch. 3, 18)"))
+            f"Takes too long to make for what it earns — ${row['Profit/Min ($)']:.2f}/min",
+            f"{row['Dish']} earns ${row['Profit/Min ($)']:.2f} per minute of kitchen time. "
+            f"Other dishes earn much more. This dish is slowing down your kitchen.",
+            f"Simplify the recipe or pre-prepare parts to cut cook time by 20%. "
+            f"That would free up about ${sh_k*(row['Prep (min)']+row['Cook (min)'])*0.2*row['Sold/Wk']:.0f}/week.",
+            sh_k * (row["Prep (min)"] + row["Cook (min)"]) * 0.15 * row["Sold/Wk"]))
 
     # ── BUNDLE ────────────────────────────────────────────────────────────
     for _, row in eng_df.iterrows():
         if row["Bundle Attach %"] >= 30:
             est_extra = row["Bundle Sales/Wk"] * row["True Profit ($)"] * 0.4
             recs.append(Rec("Bundle", 3, row["Dish"],
-                f"{row['Bundle Attach %']}% bundle rate — formalise upsell",
-                f"{row['Dish']} already attaches to {int(row['Bundle Attach %'])}% of orders. "
-                f"A structured add-on prompt could lift that to "
-                f"{min(55, int(row['Bundle Attach %'])+10)}%.",
-                f"Create a '{row['Dish']} + complement' combo at a $1.50 bundle premium. "
-                f"Est. extra: ${est_extra:.0f}/wk.",
-                est_extra,
-                "Bundle attach rate analysis + demand model"))
+                f"People often order extras with this dish — make it official",
+                f"{int(row['Bundle Attach %'])}% of orders of {row['Dish']} already include an add-on. "
+                f"A proper combo deal on your menu or till could push that higher.",
+                f"Create a '{row['Dish']} + [side/drink]' deal at a $1.50 combo price. "
+                f"Estimated extra: ${est_extra:.0f}/week.",
+                est_extra))
 
     # ── FINANCIAL HEALTH ─────────────────────────────────────────────────
     if fin["safety"] < 15:
         recs.append(Rec("Operations", 1, "All Dishes",
-            f"Safety buffer only {fin['safety']:.1f}% — near breakeven",
-            f"You need {fin['bep']:.0f} orders/week to cover all costs. You have {fin['covers']:.0f}. "
-            f"Monte Carlo P5 (${mc['p5']:,.0f} net) shows a bad week could put you below breakeven.",
-            f"Increase prices on Plow Horses by $0.50 each, target "
-            f"+{int(max(0, fin['bep'] - fin['surplus']))} extra orders/wk.",
-            abs(fin["net"] * 0.15),
-            "Safety buffer analysis + Monte Carlo risk (Taha Ch. 19)"))
+            f"You are very close to breaking even — a bad week could put you in the red",
+            f"You need {fin['bep']:.0f} orders per week to cover all your costs. "
+            f"You are getting {fin['covers']:.0f}. In a bad week your profit could drop to "
+            f"${mc['p5']:,.0f} — below zero.",
+            f"Raise prices on your popular low-margin dishes by $0.50 each "
+            f"and think about removing your weakest dish.",
+            abs(fin["net"] * 0.15)))
 
     if fin["fc_pct"] > 35:
         recs.append(Rec("Pricing", 2, "All Dishes",
-            f"Average true food cost {fin['fc_pct']:.1f}% — above 32% target",
-            f"Across all dishes, your true food cost is {fin['fc_pct']:.1f}%. "
-            f"Each percentage point above 32% costs ~${fin['rev'] * 0.01:,.0f}/week.",
-            f"Address top 3 offenders. Reaching 32% adds "
-            f"${(fin['fc_pct'] - 32) * fin['rev'] / 100:,.0f}/week.",
-            (fin["fc_pct"] - 32) * fin["rev"] / 100 if fin["fc_pct"] > 32 else 0,
-            "True cost model + LP resource analysis (Taha Ch. 3, 13)"))
+            f"Your average food cost is {fin['fc_pct']:.1f}% — target is under 32%",
+            f"Across all dishes, the real cost of food (including waste and staff time) "
+            f"is too high. Every extra percent above 32% costs you ~${fin['rev'] * 0.01:,.0f}/week.",
+            f"Fix your top 3 most expensive dishes first. "
+            f"Getting to 32% would add ${(fin['fc_pct'] - 32) * fin['rev'] / 100:,.0f}/week.",
+            (fin["fc_pct"] - 32) * fin["rev"] / 100 if fin["fc_pct"] > 32 else 0))
 
     return sorted(recs, key=lambda r: (r.priority, -r.impact))
 
@@ -600,6 +587,12 @@ def kcard(lbl, val, sub="", cls="gold"):
             f'<div class="kpi-v {cls}">{val}</div>'
             f'<div class="kpi-s">{sub}</div></div>')
 
+def _no_zoom(fig, height):
+    fig.update_layout(**DARK, **NO_EXPAND, height=height)
+    fig.update_xaxes(fixedrange=True)
+    fig.update_yaxes(fixedrange=True)
+    return fig
+
 def fig_bcg(eng_df, avg_p, avg_q):
     fig = go.Figure()
     for t, grp in eng_df.groupby("Type"):
@@ -612,19 +605,18 @@ def fig_bcg(eng_df, avg_p, avg_q):
                         line=dict(width=1.5, color="rgba(255,255,255,.1)"))))
     fig.add_hline(y=avg_p, line_dash="dot", line_color="rgba(255,255,255,.1)")
     fig.add_vline(x=avg_q, line_dash="dot", line_color="rgba(255,255,255,.1)")
-    for l, ax, ay, xa, ya in [
-        ("⭐ STARS",       eng_df["Sold/Wk"].max()*1.0, eng_df["True Profit ($)"].max()*1.0, "right","top"),
-        ("🧩 PUZZLES",     eng_df["Sold/Wk"].min()*.88, eng_df["True Profit ($)"].max()*1.0, "left","top"),
-        ("🐎 PLOW HORSES", eng_df["Sold/Wk"].max()*1.0, eng_df["True Profit ($)"].min()*.88, "right","bottom"),
+    for lbl, ax, ay, xa, ya in [
+        ("⭐ STARS",       eng_df["Sold/Wk"].max(), eng_df["True Profit ($)"].max(), "right","top"),
+        ("🧩 PUZZLES",     eng_df["Sold/Wk"].min()*.88, eng_df["True Profit ($)"].max(), "left","top"),
+        ("🐎 PLOW HORSES", eng_df["Sold/Wk"].max(), eng_df["True Profit ($)"].min()*.88, "right","bottom"),
         ("🐕 DOGS",        eng_df["Sold/Wk"].min()*.88, eng_df["True Profit ($)"].min()*.88, "left","bottom"),
     ]:
-        fig.add_annotation(x=ax, y=ay, text=l, showarrow=False,
+        fig.add_annotation(x=ax, y=ay, text=lbl, showarrow=False,
                            font=dict(size=8, color="rgba(255,255,255,.14)"),
                            xanchor=xa, yanchor=ya)
-    fig.update_layout(**DARK, height=380,
-                      title="Menu Engineering Matrix (Taha Ch. 15)",
-                      xaxis_title="Orders / Week", yaxis_title="True Profit / Dish ($)")
-    return fig
+    fig.update_layout(title="Menu Performance Map — profit vs. how many you sell",
+                      xaxis_title="Orders per week", yaxis_title="Profit per dish ($)")
+    return _no_zoom(fig, 380)
 
 def fig_profit_min(eng_df):
     sdf = eng_df.sort_values("Profit/Min ($)", ascending=False)
@@ -635,14 +627,13 @@ def fig_profit_min(eng_df):
                     showscale=False, line=dict(width=0)),
         text=[f"${v:.2f}" for v in sdf["Profit/Min ($)"]],
         textposition="outside", textfont=dict(size=10, color="#8A9AC8")))
-    fig.update_layout(**DARK, height=260, xaxis_tickangle=-25,
-                      title="Profit per kitchen minute — LP efficiency metric (Taha Ch. 3)")
-    return fig
+    fig.update_layout(title="Profit earned per minute of kitchen time")
+    return _no_zoom(fig, 260)
 
 def fig_pl_waterfall(fin):
     fig = go.Figure(go.Waterfall(
         orientation="v",
-        x=["Total Sales","− Ingredient Cost","− Wastage & Labour","− Fixed Costs","Net Profit"],
+        x=["Total Sales","− Food Cost","− Waste & Labour","− Fixed Costs","Net Profit"],
         y=[fin["rev"],
            -(fin["rev"] * fin["ing_pct"] / 100),
            -(fin["pool"] - fin["rev"] * (1 - fin["ing_pct"]/100)),
@@ -651,13 +642,14 @@ def fig_pl_waterfall(fin):
         increasing={"marker":{"color":GREEN}},
         decreasing={"marker":{"color":RED}},
         totals={"marker":{"color":GOLD}},
-        text=[f"${abs(v):,.0f}" for v in [fin["rev"],
-               -(fin["rev"]*fin["ing_pct"]/100),
-               -(fin["pool"]-fin["rev"]*(1-fin["ing_pct"]/100)),
-               -fin["fixed"], fin["net"]]],
+        text=[f"${abs(v):,.0f}" for v in [
+            fin["rev"],
+            -(fin["rev"]*fin["ing_pct"]/100),
+            -(fin["pool"]-fin["rev"]*(1-fin["ing_pct"]/100)),
+            -fin["fixed"], fin["net"]]],
         textposition="outside", textfont=dict(size=10, color="#8A9AC8")))
-    fig.update_layout(**DARK, title="True P&L Waterfall", height=280)
-    return fig
+    fig.update_layout(title="Where every dollar goes this week")
+    return _no_zoom(fig, 280)
 
 def fig_mc(mc):
     bins = np.linspace(mc["sims"].min(), mc["sims"].max(), 65)
@@ -668,42 +660,43 @@ def fig_mc(mc):
                                        colorscale=[[0,RED],[.35,AMBER],[.65,BLUE],[1,GREEN]],
                                        showscale=False, line=dict(width=0)),
                            opacity=.85))
-    for v, l, c in [(mc["p5"],"P5  (bad week)",RED),(mc["p50"],"P50 (median)",GOLD),
-                    (mc["p95"],"P95  (good week)",GREEN)]:
+    for v, lbl, c in [
+        (mc["p5"],  "Bad week",    RED),
+        (mc["p50"], "Normal week", GOLD),
+        (mc["p95"], "Great week",  GREEN),
+    ]:
         fig.add_vline(x=v, line_color=c, line_dash="dash", line_width=1.5,
-                      annotation_text=f"{l}  ${v:,.0f}",
+                      annotation_text=f"{lbl}  ${v:,.0f}",
                       annotation_font=dict(color=c, size=9))
-    fig.update_layout(**DARK, height=260,
-                      title="Monte Carlo — 8,000 demand simulations (Taha Ch. 19)",
-                      xaxis_title="Weekly Net Profit ($)", yaxis_title="Frequency")
-    return fig
+    fig.update_layout(title="What your weekly profit could look like — 8,000 scenarios",
+                      xaxis_title="Weekly net profit ($)", yaxis_title="How often")
+    return _no_zoom(fig, 260)
 
 def fig_shadow(sh_k, sh_b, sh_s):
     fig = go.Figure(go.Bar(
-        x=["1 extra kitchen min", "1 extra $1 budget", "1 extra table min"],
+        x=["1 extra kitchen minute", "1 extra $1 food budget", "1 extra table minute"],
         y=[sh_k, sh_b, sh_s],
         marker=dict(color=[BLUE, GOLD, PURPLE], line=dict(width=0)),
         text=[f"${sh_k:.3f}", f"${sh_b:.4f}", f"${sh_s:.3f}"],
         textposition="outside", textfont=dict(size=11, color="#8A9AC8")))
-    fig.update_layout(**DARK, height=220,
-                      title="LP Shadow Prices — marginal value of each constraint (Taha Ch. 3)",
+    fig.update_layout(title="How much extra profit you gain by relaxing each limit",
                       yaxis_title="Extra weekly profit ($)")
-    return fig
+    return _no_zoom(fig, 220)
 
 def fig_eoq_table(eng_df, eoq_data):
     rows_d = []
     for i, (_, row) in enumerate(eng_df.iterrows()):
         eq = eoq_data[i]
-        status = "🔴 Stockout Risk" if eq["stockout"] else ("🟡 Overstock" if eq["overstock"] else "✅ OK")
+        status = "🔴 Order Now" if eq["stockout"] else ("🟡 Too Much Stock" if eq["overstock"] else "✅ OK")
         rows_d.append({
-            "Dish":              row["Dish"],
-            "Current Stock":     int(row["Stock"]),
-            "EOQ (units)":       int(eq["eoq"]),
-            "Safety Stock":      int(eq["safety_stock"]),
-            "Reorder Point":     int(eq["rop"]),
-            "Order Cycle (days)":eq["cycle_days"],
-            "Annual Saving ($)": f"${eq['annual_saving']:,.0f}",
-            "Status":            status,
+            "Dish":               row["Dish"],
+            "Current Stock":      int(row["Stock"]),
+            "Best Order Size":    int(eq["eoq"]),
+            "Safety Buffer":      int(eq["safety_stock"]),
+            "Order When Below":   int(eq["rop"]),
+            "Order Every (days)": eq["cycle_days"],
+            "Annual Saving ($)":  f"${eq['annual_saving']:,.0f}",
+            "Status":             status,
         })
     return pd.DataFrame(rows_d)
 
@@ -711,18 +704,19 @@ def fig_util_gauge(util_pct):
     color = GREEN if util_pct < 70 else (AMBER if util_pct < 85 else RED)
     fig = go.Figure(go.Indicator(
         mode="gauge+number", value=util_pct,
-        title={"text":"Kitchen Utilisation %","font":{"size":11,"color":"#8A9AC8"}},
+        title={"text":"Kitchen Busy %","font":{"size":11,"color":"#8A9AC8"}},
         number={"suffix":"%","font":{"size":20,"color":color}},
         gauge=dict(
             axis=dict(range=[0,100], tickcolor="#222"),
             bar=dict(color=color, thickness=0.22),
             bgcolor="rgba(0,0,0,0)", borderwidth=0,
-            steps=[{"range":[0,70],"color":"rgba(53,200,134,.08)"},
-                   {"range":[70,85],"color":"rgba(240,160,48,.08)"},
-                   {"range":[85,100],"color":"rgba(220,69,69,.08)"}],
+            steps=[
+                {"range":[0,70],  "color":"rgba(53,200,134,.08)"},
+                {"range":[70,85], "color":"rgba(240,160,48,.08)"},
+                {"range":[85,100],"color":"rgba(220,69,69,.08)"},
+            ],
             threshold=dict(line=dict(color=color,width=2),thickness=.75,value=util_pct))))
-    fig.update_layout(**DARK, height=190)
-    return fig
+    return _no_zoom(fig, 190)
 
 def fig_food_cost_bars(eng_df):
     sdf = eng_df.sort_values("Food Cost %", ascending=False)
@@ -735,9 +729,8 @@ def fig_food_cost_bars(eng_df):
         textposition="outside", textfont=dict(size=10, color="#8A9AC8")))
     fig.add_hline(y=32, line_dash="dash", line_color=GOLD,
                   annotation_text="Target 32%", annotation_font_color=GOLD)
-    fig.update_layout(**DARK, height=250, xaxis_tickangle=-25,
-                      title="True food cost % per dish (ingredient + wastage + labour ÷ price)")
-    return fig
+    fig.update_layout(title="Real food cost % per dish (ingredients + waste + staff time)")
+    return _no_zoom(fig, 250)
 
 def fig_price_compare(rows, opt_prices, eng_df):
     names = [r["Dish"] for r in rows]
@@ -745,19 +738,18 @@ def fig_price_compare(rows, opt_prices, eng_df):
     opt   = [round(p * 4)/4 for p in opt_prices]
     tcs   = [true_cost(r) for r in rows]
     fig   = go.Figure()
-    fig.add_trace(go.Bar(name="True Cost",       x=names, y=tcs,  marker_color=RED,  opacity=.65))
-    fig.add_trace(go.Bar(name="Current Price",   x=names, y=curr, marker_color=BLUE, opacity=.75))
-    fig.add_trace(go.Bar(name="Suggested Price", x=names, y=opt,  marker_color=GOLD, opacity=.9))
-    fig.update_layout(**DARK, barmode="group", height=280, xaxis_tickangle=-25,
-                      title="True cost vs. current vs. suggested price",
+    fig.add_trace(go.Bar(name="Real Cost",        x=names, y=tcs,  marker_color=RED,  opacity=.65))
+    fig.add_trace(go.Bar(name="Current Price",    x=names, y=curr, marker_color=BLUE, opacity=.75))
+    fig.add_trace(go.Bar(name="Suggested Price",  x=names, y=opt,  marker_color=GOLD, opacity=.9))
+    fig.update_layout(barmode="group", title="Real cost vs. what you charge vs. what you should charge",
                       yaxis_title="$ per dish")
-    return fig
+    return _no_zoom(fig, 280)
 
 def fig_clv(eng_df):
     clvs = []
     for _, row in eng_df.iterrows():
         clv, ret = markov_ltv(row["Rating"], row["True Profit ($)"])
-        clvs.append({"Dish": row["Dish"], "CLV ($)": clv, "Retention %": ret})
+        clvs.append({"Dish": row["Dish"], "CLV ($)": clv, "Repeat Visit %": ret})
     cdf = pd.DataFrame(clvs).sort_values("CLV ($)", ascending=False)
     fig = go.Figure(go.Bar(
         x=cdf["Dish"], y=cdf["CLV ($)"],
@@ -766,13 +758,12 @@ def fig_clv(eng_df):
                     showscale=False, line=dict(width=0)),
         text=[f"${v:,.0f}" for v in cdf["CLV ($)"]],
         textposition="outside", textfont=dict(size=10, color="#8A9AC8")))
-    fig.update_layout(**DARK, height=250, xaxis_tickangle=-25,
-                      title="Customer Lifetime Value by dish — Markov model (Taha Ch. 17)",
-                      yaxis_title="Estimated CLV ($)")
-    return fig
+    fig.update_layout(title="How much a happy customer is worth over their lifetime",
+                      yaxis_title="Estimated customer value ($)")
+    return _no_zoom(fig, 250)
 
 # ═════════════════════════════════════════════════════════════════════════════
-#  HTML REPORT GENERATOR
+#  HTML REPORT
 # ═════════════════════════════════════════════════════════════════════════════
 
 def generate_report(df, eng_df, fin, opt_prices, mc, sh_k, sh_b, sh_s,
@@ -805,7 +796,7 @@ def generate_report(df, eng_df, fin, opt_prices, mc, sh_k, sh_b, sh_s,
     inv_rows = ""
     for i, (_, row) in enumerate(eng_df.iterrows()):
         eq = eoq_data[i]
-        st = "🔴 Reorder Now" if eq["stockout"] else ("🟡 Overstock" if eq["overstock"] else "✅ OK")
+        st = "🔴 Order Now" if eq["stockout"] else ("🟡 Too Much" if eq["overstock"] else "✅ OK")
         inv_rows += f"""<tr>
           <td><b>{row['Dish']}</b></td>
           <td>{int(row['Stock'])}</td><td>{int(eq['eoq'])}</td>
@@ -815,21 +806,22 @@ def generate_report(df, eng_df, fin, opt_prices, mc, sh_k, sh_b, sh_s,
         </tr>"""
 
     rec_html = ""
-    pri_map  = {1:"🔴 CRITICAL",2:"🟡 HIGH",3:"🟢 MEDIUM"}
+    pri_map  = {1:"🔴 URGENT",2:"🟡 IMPORTANT",3:"🟢 WORTH DOING"}
     for r in recs[:15]:
+        col = '#DC4545' if r.priority==1 else '#F0A030' if r.priority==2 else '#35C886'
         rec_html += f"""
-        <div style="border-left:3px solid {'#DC4545' if r.priority==1 else '#F0A030' if r.priority==2 else '#35C886'};
-                    background:#0C1020;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:10px;font-size:13px">
+        <div style="border-left:3px solid {col};background:#0C1020;border-radius:0 8px 8px 0;
+                    padding:12px 16px;margin-bottom:10px;font-size:13px">
           <div style="display:flex;gap:8px;align-items:center;margin-bottom:5px;flex-wrap:wrap">
-            <span style="font-size:10px;font-weight:700;color:{'#DC4545' if r.priority==1 else '#F0A030' if r.priority==2 else '#35C886'}">{pri_map[r.priority]}</span>
-            <span style="font-size:10px;color:#D2A248;background:rgba(210,162,72,.1);padding:1px 7px;border-radius:20px">{r.cat.upper()}</span>
+            <span style="font-size:10px;font-weight:700;color:{col}">{pri_map[r.priority]}</span>
+            <span style="font-size:10px;color:#D2A248;background:rgba(210,162,72,.1);
+                         padding:1px 7px;border-radius:20px">{r.cat.upper()}</span>
             <span style="font-size:10px;color:#4A5578">{r.dish}</span>
             <span style="margin-left:auto;font-weight:700;color:#35C886">+${r.impact:.0f}/wk</span>
           </div>
           <div style="font-weight:600;color:#DEE2F0;margin-bottom:4px">{r.title}</div>
           <div style="color:#6070A0;line-height:1.6;margin-bottom:5px">{r.insight}</div>
           <div style="color:#D2A248;font-weight:500">→ {r.action}</div>
-          <div style="font-size:10px;color:#2A3550;margin-top:5px;font-style:italic">OR basis: {r.or_ref}</div>
         </div>"""
 
     return f"""<!DOCTYPE html><html lang="en"><head>
@@ -859,7 +851,7 @@ body{{background:#070910;color:#DEE2F0;padding:0}}
 .ibox strong{{color:#5498F2}}
 table{{width:100%;border-collapse:collapse;font-size:12px}}
 thead tr{{background:#0F1220}}
-th{{padding:9px 9px;text-align:left;color:#4A5578;font-weight:600;font-size:.65rem;
+th{{padding:9px;text-align:left;color:#4A5578;font-weight:600;font-size:.65rem;
   text-transform:uppercase;letter-spacing:.06em}}
 td{{padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}}
 tr:hover{{background:rgba(255,255,255,.02)}}
@@ -871,39 +863,31 @@ tr:hover{{background:rgba(255,255,255,.02)}}
 </style></head><body><div class="page">
 <div class="hdr">
   <h1>🍽️ MenuProfit <span>Pro</span></h1>
-  <p>{period} Report &nbsp;·&nbsp; {rdate} &nbsp;·&nbsp; OR-Powered Restaurant Intelligence</p>
+  <p>{period} Report &nbsp;·&nbsp; {rdate}</p>
 </div>
 <div class="sec"><h2>Financial Summary</h2>
 <div class="kgrid">
   <div class="kbox"><div class="l">Revenue / {plab}</div><div class="v">${fin['rev']*factor:,.0f}</div></div>
   <div class="kbox {'g' if fin['net']>0 else 'r'}"><div class="l">Net Profit / {plab}</div><div class="v">${fin['net']*factor:,.0f}</div></div>
   <div class="kbox {'g' if gain>0 else ''}"><div class="l">Extra if Repriced</div><div class="v">${gain*factor:+,.0f}</div><div class="s">per {plab.lower()}</div></div>
-  <div class="kbox {'r' if fin['fc_pct']>35 else 'g'}"><div class="l">True Food Cost %</div><div class="v">{fin['fc_pct']:.1f}%</div><div class="s">target &lt;32%</div></div>
+  <div class="kbox {'r' if fin['fc_pct']>35 else 'g'}"><div class="l">Food Cost %</div><div class="v">{fin['fc_pct']:.1f}%</div><div class="s">target under 32%</div></div>
   <div class="kbox {'g' if fin['safety']>25 else 'r'}"><div class="l">Safety Buffer</div><div class="v">{fin['safety']:.1f}%</div></div>
-  <div class="kbox b"><div class="l">MC P5 Risk</div><div class="v">${mc['p5']:,.0f}</div><div class="s">bad week scenario</div></div>
+  <div class="kbox b"><div class="l">Bad Week Risk</div><div class="v">${mc['p5']:,.0f}</div></div>
   <div class="kbox"><div class="l">Annual Profit</div><div class="v">${fin['annual']:,.0f}</div></div>
-  <div class="kbox"><div class="l">Breakeven</div><div class="v">{fin['bep']:.0f}</div><div class="s">orders/wk needed</div></div>
+  <div class="kbox"><div class="l">Break-Even Orders</div><div class="v">{fin['bep']:.0f}</div><div class="s">per week needed</div></div>
 </div></div>
-<div class="sec"><h2>OR Analysis</h2>
-<div class="ibox"><strong>LP Shadow Prices (Taha Ch. 3):</strong><br>
-Each extra kitchen minute = <strong>${sh_k:.3f}</strong> profit &nbsp;|&nbsp;
-Each extra $1 ingredient budget = <strong>${sh_b:.4f}</strong> profit &nbsp;|&nbsp;
-Kitchen utilisation = <strong>{kitchen['util_pct']:.0f}%</strong><br><br>
-<strong>Monte Carlo (Taha Ch. 19) — 8,000 simulations:</strong><br>
-P5 = <strong>${mc['p5']:,.0f}</strong> &nbsp;|&nbsp; P50 = <strong>${mc['p50']:,.0f}</strong> &nbsp;|&nbsp;
-P95 = <strong>${mc['p95']:,.0f}</strong></div></div>
 <div class="sec"><h2>Full Dish Breakdown</h2>
 <table><thead><tr>
-  <th>Dish</th><th>Cat</th><th>Ingr Cost</th><th>True Cost</th>
-  <th>Price</th><th>Suggested $</th><th>True Profit</th>
-  <th>$/Min</th><th>Orders/Wk</th><th>Wk Profit</th><th>FC%</th><th>Type</th>
+  <th>Dish</th><th>Category</th><th>Ingredient Cost</th><th>Real Cost</th>
+  <th>Price</th><th>Suggested Price</th><th>Profit</th>
+  <th>$/Min</th><th>Orders/Wk</th><th>Weekly Profit</th><th>Food Cost%</th><th>Type</th>
 </tr></thead><tbody>{dish_rows}</tbody></table></div>
-<div class="sec"><h2>Inventory — EOQ Analysis (Taha Ch. 13)</h2>
+<div class="sec"><h2>Stock Levels</h2>
 <table><thead><tr>
-  <th>Dish</th><th>Stock</th><th>EOQ</th><th>Safety Stock</th>
-  <th>Reorder Pt</th><th>Cycle (days)</th><th>Annual Saving</th><th>Status</th>
+  <th>Dish</th><th>Stock</th><th>Best Order Size</th><th>Safety Buffer</th>
+  <th>Order When Below</th><th>Order Every (days)</th><th>Annual Saving</th><th>Status</th>
 </tr></thead><tbody>{inv_rows}</tbody></table></div>
-<div class="sec"><h2>Top Recommendations</h2>{rec_html}</div>
+<div class="sec"><h2>Top Actions</h2>{rec_html}</div>
 <div class="foot">MenuProfit Pro &nbsp;·&nbsp; {period} Report &nbsp;·&nbsp; {rdate}</div>
 </div></body></html>"""
 
@@ -924,13 +908,13 @@ st.markdown("""
 <div class="banner">
   <div>
     <div class="b-title">🍽️ MenuProfit <span>Pro</span></div>
-    <div class="b-sub">Restaurant profit intelligence · 10 OR models · 18 input variables</div>
+    <div class="b-sub">Restaurant profit tool · smart pricing · stock management · kitchen efficiency</div>
   </div>
   <div class="b-badges">
-    <span class="b-badge">LP · SHADOW PRICES</span>
-    <span class="b-badge">EOQ · INVENTORY</span>
-    <span class="b-badge">MONTE CARLO</span>
-    <span class="b-badge">MARKOV CLV</span>
+    <span class="b-badge">PRICE OPTIMISER</span>
+    <span class="b-badge">STOCK ALERTS</span>
+    <span class="b-badge">RISK SCENARIOS</span>
+    <span class="b-badge">LIFETIME VALUE</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -939,20 +923,20 @@ st.markdown("""
 #  SIDEBAR
 # ═════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown("### ⚙️ Business Parameters")
-    weekly_fixed           = st.number_input("Fixed costs / week ($)",       value=3500, step=100)
-    available_kitchen_mins = st.number_input("Kitchen minutes / week",        value=4800, step=60,
-                                             help="Shift hours × number of chefs × 60")
-    ing_budget             = st.number_input("Ingredient budget / week ($)",  value=4000, step=100)
+    st.markdown("### ⚙️ Your Business Numbers")
+    weekly_fixed           = st.number_input("Fixed costs per week ($)",      value=3500, step=100)
+    available_kitchen_mins = st.number_input("Kitchen minutes per week",       value=4800, step=60,
+                                             help="Staff hours × number of cooks × 60")
+    ing_budget             = st.number_input("Food budget per week ($)",       value=4000, step=100)
     st.divider()
-    st.markdown("### 📐 Optimiser Rules")
-    min_mg = st.slider("Min true margin %",        20, 60, 28)
-    max_up = st.slider("Max price increase %",      5, 50, 35)
+    st.markdown("### 📐 Price Rules")
+    min_mg = st.slider("Minimum profit margin %",   20, 60, 28)
+    max_up = st.slider("Maximum price increase %",   5, 50, 35)
     st.divider()
-    st.markdown("### 📦 Inventory Settings")
-    service_lvl  = st.slider("Inventory service level %", 80, 99, 95)
-    demand_sigma = st.slider("Demand std dev %",           5, 30, 15,
-                             help="Uncertainty in weekly demand")
+    st.markdown("### 📦 Stock Settings")
+    service_lvl  = st.slider("Stock safety level %",  80, 99, 95)
+    demand_sigma = st.slider("Demand variability %",   5, 30, 15,
+                             help="How much your weekly orders vary")
     st.divider()
     st.markdown("### 📂 Upload Your Menu")
     uploaded = st.file_uploader("CSV file", type=["csv"])
@@ -962,15 +946,15 @@ with st.sidebar:
             imported_df = pd.read_csv(uploaded)
             miss = [c for c in DEFAULT.keys() if c not in imported_df.columns]
             if miss: st.error(f"Missing columns: {miss}"); imported_df = None
-            else:    st.success("✓ Loaded")
+            else:    st.success("✓ Menu loaded")
         except Exception as e:
             st.error(str(e))
     st.divider()
     st.caption(
-        "**Elasticity guide**\n\n"
-        "−0.3 – −0.6 : Drinks, coffee\n\n"
-        "−0.7 – −1.0 : Typical mains\n\n"
-        "−1.1 – −1.5 : Price-sensitive items"
+        "**Price sensitivity guide**\n\n"
+        "−0.3 – −0.6 : Drinks & coffee (not price sensitive)\n\n"
+        "−0.7 – −1.0 : Typical main dishes\n\n"
+        "−1.1 – −1.5 : Budget items like salads & sides"
     )
 
 Z_SCORES = {80:1.282, 85:1.036, 90:1.282, 95:1.645, 99:2.326}
@@ -982,8 +966,8 @@ svc_z    = Z_SCORES.get(service_lvl, 1.645)
 st.markdown('<div class="sh">📋 Your Menu — edit any cell, add rows with ＋</div>', unsafe_allow_html=True)
 st.markdown(
     '<div class="tip">'
-    '18 variables per dish power 10 OR models. True Cost = ingredient × (1+wastage%) + kitchen labour. '
-    'All OR calculations update instantly when you re-run the analysis.'
+    'Fill in all columns for each dish. Real cost = ingredient cost after waste + staff time. '
+    'All results update when you click Run Analysis.'
     '</div>', unsafe_allow_html=True)
 
 base_df = pd.DataFrame(imported_df if imported_df is not None else DEFAULT)
@@ -992,13 +976,13 @@ menu_df = st.data_editor(
     column_config={
         "Ingredient ($)":   st.column_config.NumberColumn("Ingredient ($)",   format="$%.2f", min_value=0.0),
         "Price ($)":        st.column_config.NumberColumn("Price ($)",        format="$%.2f", min_value=0.0),
-        "Sold/Wk":          st.column_config.NumberColumn("Sold / Week",      min_value=0),
+        "Sold/Wk":          st.column_config.NumberColumn("Sold per Week",    min_value=0),
         "Prep (min)":       st.column_config.NumberColumn("Prep (min)",       min_value=0),
         "Cook (min)":       st.column_config.NumberColumn("Cook (min)",       min_value=1),
         "Table Time (min)": st.column_config.NumberColumn("Table Time (min)", min_value=5),
         "Wastage %":        st.column_config.NumberColumn("Wastage %",        format="%.0f%%", min_value=0, max_value=50),
         "Labour $/hr":      st.column_config.NumberColumn("Labour $/hr",      format="$%.0f",  min_value=0),
-        "Elasticity":       st.column_config.NumberColumn("Elasticity",       format="%.1f",   min_value=-3.0, max_value=-0.1),
+        "Elasticity":       st.column_config.NumberColumn("Price Sensitivity",format="%.1f",   min_value=-3.0, max_value=-0.1),
         "Stock":            st.column_config.NumberColumn("Stock (units)",    min_value=0),
         "Reorder Pt":       st.column_config.NumberColumn("Reorder Point",    min_value=0),
         "Lead Days":        st.column_config.NumberColumn("Lead Days",        min_value=1),
@@ -1013,30 +997,30 @@ menu_df = st.data_editor(
 if not menu_df.empty:
     bad = menu_df[menu_df["Ingredient ($)"] >= menu_df["Price ($)"]]
     if not bad.empty:
-        st.warning(f"⚠️ Ingredient cost ≥ price: {', '.join(bad['Dish'].tolist())} — fix before running.")
+        st.warning(f"⚠️ Ingredient cost is higher than selling price: {', '.join(bad['Dish'].tolist())} — please fix before running.")
 
 c_run, c_exp = st.columns([3,1])
 with c_run:
-    run_btn = st.button("🚀  Run Full Analysis — LP + EOQ + Monte Carlo + All 10 OR Models")
+    run_btn = st.button("🚀  Run Analysis")
 with c_exp:
     if st.session_state.eng_df is not None:
         buf = io.StringIO()
         st.session_state.eng_df.to_csv(buf, index=False)
-        st.download_button("⬇️ CSV", buf.getvalue(), "menuprofit.csv", "text/csv")
+        st.download_button("⬇️ Export CSV", buf.getvalue(), "menuprofit.csv", "text/csv")
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  RUN ENGINE
 # ═════════════════════════════════════════════════════════════════════════════
 if run_btn:
     if menu_df.empty: st.error("Add at least one dish."); st.stop()
-    with st.spinner("Running LP · EOQ · Monte Carlo · Markov · Queuing analysis…"):
+    with st.spinner("Crunching the numbers…"):
         rows = menu_df.to_dict("records")
 
         eng_df, avg_p, avg_q = classify_menu(menu_df)
-        fin    = calc_fin(menu_df, eng_df, weekly_fixed)
-        _, sh_k, sh_b, sh_s  = run_lp(menu_df, available_kitchen_mins, ing_budget)
+        fin      = calc_fin(menu_df, eng_df, weekly_fixed)
+        _, sh_k, sh_b, sh_s = run_lp(menu_df, available_kitchen_mins, ing_budget)
         opt_p, _ = optimise_prices(rows, weekly_fixed, min_mg/100, max_up/100)
-        mc     = monte_carlo(menu_df, fixed=weekly_fixed, sigma=demand_sigma/100)
+        mc       = monte_carlo(menu_df, fixed=weekly_fixed, sigma=demand_sigma/100)
         eoq_data = [eoq_model(row, demand_sigma/100, svc_z) for row in rows]
         kitchen  = kitchen_analysis(menu_df, available_kitchen_mins)
         recs     = generate_recommendations(
@@ -1048,7 +1032,7 @@ if run_btn:
             sh_k=sh_k, sh_b=sh_b, sh_s=sh_s,
             kitchen=kitchen, eoq_data=eoq_data, recs=recs, ran=True)
 
-    st.success(f"✓ Analysis complete — {len(recs)} recommendations generated")
+    st.success(f"✓ Done — {len(recs)} actions found")
 
 # ═════════════════════════════════════════════════════════════════════════════
 #  TABS
@@ -1077,9 +1061,9 @@ if st.session_state.ran:
 
     T1, T2, T3, T4 = st.tabs([
         "📊  Overview",
-        "💰  Price Calculator",
-        "💡  Recommendations",
-        "📄  Reports",
+        "💰  Pricing",
+        "💡  Actions",
+        "📄  Report",
     ])
 
     # ── TAB 1: OVERVIEW ──────────────────────────────────────────────────
@@ -1088,19 +1072,19 @@ if st.session_state.ran:
 
         c = st.columns(4)
         for col, (lbl, val, sub, cls) in zip(c, [
-            ("Weekly Revenue",  f"${fin['rev']:,.0f}",   "total sales",           "white"),
-            ("True Net Profit", f"${fin['net']:,.0f}",   "after all costs",        "green" if fin["net"]>0 else "red"),
-            ("Annual Profit",   f"${fin['annual']:,.0f}","×52 weeks",              "gold"),
-            ("True Food Cost",  f"{fin['fc_pct']:.1f}%", "incl wastage + labour", "green" if fin["fc_pct"]<=32 else "red"),
+            ("Weekly Revenue",  f"${fin['rev']:,.0f}",   "total sales",            "white"),
+            ("Net Profit",      f"${fin['net']:,.0f}",   "after all costs",         "green" if fin["net"]>0 else "red"),
+            ("Annual Profit",   f"${fin['annual']:,.0f}","52 weeks",                "gold"),
+            ("Food Cost %",     f"{fin['fc_pct']:.1f}%", "incl. waste + staff",    "green" if fin["fc_pct"]<=32 else "red"),
         ]):
             col.markdown('<div class="krow">'+kcard(lbl,val,sub,cls)+'</div>', unsafe_allow_html=True)
 
         c2 = st.columns(4)
         for col, (lbl, val, sub, cls) in zip(c2, [
-            ("Safety Buffer",       f"{fin['safety']:.1f}%",      "above breakeven",    "green" if fin["safety"]>25 else "red"),
-            ("MC Risk (P5)",        f"${mc['p5']:,.0f}",           "bad-week floor",     "blue"),
-            ("Kitchen Utilisation", f"{kitchen['util_pct']:.0f}%", "of available time",  "green" if kitchen["util_pct"]<75 else "red"),
-            ("Stockout Alerts",     f"{stockouts}",                "dishes below ROP",   "red" if stockouts>0 else "green"),
+            ("Safety Buffer",    f"{fin['safety']:.1f}%",      "above break-even",  "green" if fin["safety"]>25 else "red"),
+            ("Bad Week Profit",  f"${mc['p5']:,.0f}",           "worst 5% scenario", "blue"),
+            ("Kitchen Busy",     f"{kitchen['util_pct']:.0f}%", "of total time",     "green" if kitchen["util_pct"]<75 else "red"),
+            ("Stock Alerts",     f"{stockouts}",                "dishes running low", "red" if stockouts>0 else "green"),
         ]):
             col.markdown('<div class="krow">'+kcard(lbl,val,sub,cls)+'</div>', unsafe_allow_html=True)
 
@@ -1109,18 +1093,23 @@ if st.session_state.ran:
         col_l, col_r = st.columns([3,2])
         with col_l:
             _, avg_p2, avg_q2 = classify_menu(menu_df)
-            st.plotly_chart(fig_bcg(eng_df, avg_p2, avg_q2), use_container_width=True)
+            st.plotly_chart(fig_bcg(eng_df, avg_p2, avg_q2),
+                            use_container_width=True, **CHART_CFG)
         with col_r:
-            st.plotly_chart(fig_pl_waterfall(fin), use_container_width=True)
-            st.plotly_chart(fig_util_gauge(kitchen["util_pct"]), use_container_width=True)
+            st.plotly_chart(fig_pl_waterfall(fin),
+                            use_container_width=True, **CHART_CFG)
+            st.plotly_chart(fig_util_gauge(kitchen["util_pct"]),
+                            use_container_width=True, **CHART_CFG)
 
-        st.plotly_chart(fig_profit_min(eng_df), use_container_width=True)
+        st.plotly_chart(fig_profit_min(eng_df), use_container_width=True, **CHART_CFG)
 
         c_fc, c_clv = st.columns(2)
-        with c_fc:  st.plotly_chart(fig_food_cost_bars(eng_df), use_container_width=True)
-        with c_clv: st.plotly_chart(fig_clv(eng_df), use_container_width=True)
+        with c_fc:
+            st.plotly_chart(fig_food_cost_bars(eng_df), use_container_width=True, **CHART_CFG)
+        with c_clv:
+            st.plotly_chart(fig_clv(eng_df), use_container_width=True, **CHART_CFG)
 
-        st.markdown('<div class="sh">Complete Dish Intelligence Table</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sh">Full Dish Table</div>', unsafe_allow_html=True)
         disp = eng_df[[
             "Dish","Category","Ingredient ($)","True Cost ($)","Price ($)",
             "True Profit ($)","True Margin %","Profit/Min ($)",
@@ -1133,34 +1122,34 @@ if st.session_state.ran:
         disp["Wk True Profit ($)"] = disp["Wk True Profit ($)"].map("${:,.0f}".format)
         st.dataframe(disp, use_container_width=True, hide_index=True)
 
-    # ── TAB 2: PRICE CALCULATOR ───────────────────────────────────────────
+    # ── TAB 2: PRICING ────────────────────────────────────────────────────
     with T2:
-        st.markdown('<div class="sh">Price Optimisation Engine</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sh">Best Prices for Each Dish</div>', unsafe_allow_html=True)
 
-        binding = "kitchen time" if sh_k > sh_b * 8 else "ingredient budget"
+        binding = "kitchen time" if sh_k > sh_b * 8 else "food budget"
         st.markdown(
             f'<div class="ibox">'
-            f'<strong>LP Analysis (Taha Ch. 2–3):</strong> Binding constraint: <strong>{binding}</strong>. '
-            f'Shadow prices — kitchen min: <strong>${sh_k:.3f}/wk</strong> · '
-            f'ingredient $1: <strong>${sh_b:.4f}/wk</strong> · '
-            f'seating min: <strong>${sh_s:.4f}/wk</strong>.<br>'
-            f'Differential evolution optimiser found prices adding '
-            f'<strong>${wk_gain:+,.0f}/wk</strong> (${wk_gain*52:+,.0f}/yr).'
+            f'Your biggest limit right now is <strong>{binding}</strong>. '
+            f'Each extra kitchen minute is worth <strong>${sh_k:.3f}</strong> more profit per week. '
+            f'Switching to the suggested prices would add '
+            f'<strong>${wk_gain:+,.0f}/week</strong> (${wk_gain*52:+,.0f}/year).'
             f'</div>', unsafe_allow_html=True)
 
         pc = st.columns(3)
-        pc[0].markdown('<div class="krow">'+kcard("Current Weekly Profit",  f"${curr_profit:,.0f}", "", "white")+'</div>', unsafe_allow_html=True)
-        pc[1].markdown('<div class="krow">'+kcard("Optimised Weekly Profit", f"${opt_profit:,.0f}",  "", "green")+'</div>', unsafe_allow_html=True)
-        pc[2].markdown('<div class="krow">'+kcard("Extra Per Year", f"${wk_gain*52:+,.0f}", "if repriced today", "gold")+'</div>', unsafe_allow_html=True)
+        pc[0].markdown('<div class="krow">'+kcard("Current Weekly Profit",   f"${curr_profit:,.0f}", "", "white")+'</div>', unsafe_allow_html=True)
+        pc[1].markdown('<div class="krow">'+kcard("Suggested Weekly Profit",  f"${opt_profit:,.0f}",  "", "green")+'</div>', unsafe_allow_html=True)
+        pc[2].markdown('<div class="krow">'+kcard("Extra Per Year",           f"${wk_gain*52:+,.0f}", "if you reprice today", "gold")+'</div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
-        with c1: st.plotly_chart(fig_shadow(sh_k, sh_b, sh_s), use_container_width=True)
-        with c2: st.plotly_chart(fig_price_compare(rows, opt_prices, eng_df), use_container_width=True)
+        with c1:
+            st.plotly_chart(fig_shadow(sh_k, sh_b, sh_s), use_container_width=True, **CHART_CFG)
+        with c2:
+            st.plotly_chart(fig_price_compare(rows, opt_prices, eng_df), use_container_width=True, **CHART_CFG)
 
-        st.plotly_chart(fig_mc(mc), use_container_width=True)
+        st.plotly_chart(fig_mc(mc), use_container_width=True, **CHART_CFG)
 
-        st.markdown("#### Suggested Price Table")
+        st.markdown("#### Suggested Prices")
         price_rows = []
         for i, r in enumerate(rows):
             p_c  = r["Price ($)"]
@@ -1172,34 +1161,29 @@ if st.session_state.ran:
             pm_c = profit_per_min(p_c, tc, r["Prep (min)"], r["Cook (min)"])
             pm_o = profit_per_min(p_o, tc, r["Prep (min)"], r["Cook (min)"])
             price_rows.append({
-                "Dish":            r["Dish"],
-                "Type":            f"{QUAD_I[eng_df.iloc[i]['Type']]} {eng_df.iloc[i]['Type']}",
-                "True Cost":       f"${tc:.2f}",
-                "Current Price":   f"${p_c:.2f}",
-                "Suggested Price": f"${p_o:.2f}",
-                "Price Change":    f"{chg:+.1f}%",
-                "Current $/Min":   f"${pm_c:.2f}",
-                "New $/Min":       f"${pm_o:.2f}",
-                "Extra/Week":      f"${cm_o-cm_c:+,.0f}",
-                "Extra/Year":      f"${(cm_o-cm_c)*52:+,.0f}",
+                "Dish":              r["Dish"],
+                "Type":              f"{QUAD_I[eng_df.iloc[i]['Type']]} {eng_df.iloc[i]['Type']}",
+                "Real Cost":         f"${tc:.2f}",
+                "Current Price":     f"${p_c:.2f}",
+                "Suggested Price":   f"${p_o:.2f}",
+                "Change":            f"{chg:+.1f}%",
+                "Current $/Min":     f"${pm_c:.2f}",
+                "New $/Min":         f"${pm_o:.2f}",
+                "Extra per Week":    f"${cm_o-cm_c:+,.0f}",
+                "Extra per Year":    f"${(cm_o-cm_c)*52:+,.0f}",
             })
         st.dataframe(pd.DataFrame(price_rows), use_container_width=True, hide_index=True)
-        st.markdown(
-            '<div class="tip">$/Min = profit per kitchen minute — the LP efficiency metric.</div>',
-            unsafe_allow_html=True)
 
-        st.markdown('<div class="sh">Inventory — Economic Order Quantity (Taha Ch. 13)</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="sh">Stock Levels</div>', unsafe_allow_html=True)
         st.markdown(
-            f'<div class="ibox"><strong>EOQ Model:</strong> EOQ = √(2DS/H). '
-            f'Reorder Point = lead-time demand + safety stock (z×σ×√lead_time). '
-            f'Safety stock uses z={svc_z:.3f} for {service_lvl}% service level.</div>',
+            f'<div class="ibox">The best order size keeps you from running out while avoiding '
+            f'too much stock sitting around. Safety buffer uses {service_lvl}% confidence level.</div>',
             unsafe_allow_html=True)
         st.dataframe(fig_eoq_table(eng_df, eoq_data), use_container_width=True, hide_index=True)
 
         st.markdown("---")
-        st.markdown("#### 🎚️ Interactive Price Tester")
-        sel   = st.selectbox("Dish to test", menu_df["Dish"].tolist(), key="pt")
+        st.markdown("#### 🎚️ Try a Price")
+        sel   = st.selectbox("Pick a dish", menu_df["Dish"].tolist(), key="pt")
         sel_r = menu_df[menu_df["Dish"] == sel].to_dict("records")[0]
         tc_sel= true_cost(sel_r)
         new_p = st.slider("Test price ($)",
@@ -1212,28 +1196,27 @@ if st.session_state.ran:
         clv, ret= markov_ltv(sel_r["Rating"], new_p - tc_sel)
 
         m1,m2,m3,m4,m5 = st.columns(5)
-        m1.metric("Est. Orders/Wk", f"{new_qty:.0f}", f"{new_qty-sel_r['Sold/Wk']:+.0f}")
-        m2.metric("Weekly Profit",  f"${new_cm:,.0f}", f"${new_cm-base_cm:+,.0f}")
-        m3.metric("True Margin",    f"{mg_pct:.1f}%")
-        m4.metric("Extra/Year",     f"${(new_cm-base_cm)*52:+,.0f}")
-        m5.metric("Customer CLV",   f"${clv:,.0f}", f"Retention {ret}%")
+        m1.metric("Est. Orders/Wk",  f"{new_qty:.0f}",     f"{new_qty-sel_r['Sold/Wk']:+.0f}")
+        m2.metric("Weekly Profit",   f"${new_cm:,.0f}",    f"${new_cm-base_cm:+,.0f}")
+        m3.metric("Profit Margin",   f"{mg_pct:.1f}%")
+        m4.metric("Extra per Year",  f"${(new_cm-base_cm)*52:+,.0f}")
+        m5.metric("Customer Value",  f"${clv:,.0f}",       f"Returns {ret}%")
 
-    # ── TAB 3: RECOMMENDATIONS ────────────────────────────────────────────
+    # ── TAB 3: ACTIONS ────────────────────────────────────────────────────
     with T3:
-        st.markdown('<div class="sh">Smart Recommendations — Algorithmic, OR-Grounded</div>',
-                    unsafe_allow_html=True)
+        st.markdown('<div class="sh">What to Do — Sorted by Importance</div>', unsafe_allow_html=True)
 
         st.markdown(
             f'<div class="psummary">'
-            f'<div class="pchip crit"><div class="pnum crit">{critical_n}</div><div class="plbl">🔴 Critical</div></div>'
-            f'<div class="pchip high"><div class="pnum high">{high_n}</div><div class="plbl">🟡 High Priority</div></div>'
-            f'<div class="pchip med"><div class="pnum med">{med_n}</div><div class="plbl">🟢 Opportunities</div></div>'
+            f'<div class="pchip crit"><div class="pnum crit">{critical_n}</div><div class="plbl">🔴 Urgent</div></div>'
+            f'<div class="pchip high"><div class="pnum high">{high_n}</div><div class="plbl">🟡 Important</div></div>'
+            f'<div class="pchip med"><div class="pnum med">{med_n}</div><div class="plbl">🟢 Worth Doing</div></div>'
             f'<div class="pchip" style="background:rgba(210,162,72,.08);border:1px solid rgba(210,162,72,.2)">'
-            f'<div class="pnum gold">${total_uplift:,.0f}</div><div class="plbl">Est. Weekly Uplift</div></div>'
+            f'<div class="pnum gold">${total_uplift:,.0f}</div><div class="plbl">Weekly Gain Available</div></div>'
             f'</div>', unsafe_allow_html=True)
 
         cats = ["All"] + sorted(set(r.cat for r in recs))
-        filt = st.selectbox("Filter by category", cats, key="rc_filt")
+        filt = st.selectbox("Filter by type", cats, key="rc_filt")
         show_recs = recs if filt == "All" else [r for r in recs if r.cat == filt]
 
         CAT_CSS = {"Pricing":"p","Inventory":"i","Menu":"m","Operations":"o","Bundle":"b"}
@@ -1252,26 +1235,15 @@ if st.session_state.ran:
               <div class="rec-title">{r.title}</div>
               <div class="rec-insight">{r.insight}</div>
               <div class="rec-action">→ {r.action}</div>
-              <div class="rec-or">OR basis: {r.or_ref}</div>
             </div>""", unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div class="ibox" style="margin-top:1rem">
-          <strong>How recommendations are generated:</strong><br>
-          • <strong>Pricing</strong> — LP shadow prices + price elasticity (Taha Ch. 3, 10)<br>
-          • <strong>Inventory</strong> — EOQ + safety stock at {service_lvl}% service level (Taha Ch. 13)<br>
-          • <strong>Menu Engineering</strong> — Decision analysis quadrant (Taha Ch. 15)<br>
-          • <strong>Operations</strong> — M/G/1 kitchen utilisation + shadow price (Taha Ch. 3, 18)<br>
-          • <strong>Bundle</strong> — Attach rate analysis + demand uplift estimation
-        </div>""", unsafe_allow_html=True)
-
-    # ── TAB 4: REPORTS ────────────────────────────────────────────────────
+    # ── TAB 4: REPORT ─────────────────────────────────────────────────────
     with T4:
-        st.markdown('<div class="sh">Download Professional Report</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sh">Download Your Report</div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="tip">Full HTML report: true cost · LP shadow prices · EOQ schedule · '
-            'Monte Carlo risk · Markov CLV · all recommendations. '
-            'Open in browser → Ctrl+P → Save as PDF.</div>', unsafe_allow_html=True)
+            '<div class="tip">Download as HTML, then open it in your browser and press Ctrl+P to save as PDF. '
+            'Great for sharing with your accountant or team.</div>',
+            unsafe_allow_html=True)
 
         rc1, rc2 = st.columns(2)
         with rc1: period = st.radio("Period", ["Weekly","Monthly"], horizontal=True)
@@ -1280,32 +1252,32 @@ if st.session_state.ran:
         factor = 4.33 if period=="Monthly" else 1
         plab   = "month" if period=="Monthly" else "week"
 
-        st.markdown(f"**Preview — {period} figures:**")
+        st.markdown(f"**Numbers for this {period.lower()} report:**")
         rv = st.columns(5)
-        rv[0].metric(f"Revenue/{plab}",    f"${fin['rev']*factor:,.0f}")
-        rv[1].metric(f"Net Profit/{plab}", f"${fin['net']*factor:,.0f}")
-        rv[2].metric("Annual Profit",       f"${fin['annual']:,.0f}")
-        rv[3].metric("Extra if Repriced",   f"${wk_gain*factor:+,.0f}/{plab}")
-        rv[4].metric("MC 90% Range",        f"${mc['p5']*factor:,.0f}–${mc['p95']*factor:,.0f}")
+        rv[0].metric(f"Revenue",       f"${fin['rev']*factor:,.0f}")
+        rv[1].metric(f"Net Profit",    f"${fin['net']*factor:,.0f}")
+        rv[2].metric("Annual Profit",   f"${fin['annual']:,.0f}")
+        rv[3].metric("Extra if Repriced",f"${wk_gain*factor:+,.0f}/{plab}")
+        rv[4].metric("Profit Range",    f"${mc['p5']*factor:,.0f}–${mc['p95']*factor:,.0f}")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("#### Breakeven Sensitivity — what if fixed costs change?")
+        st.markdown("#### What if your fixed costs change?")
         sce = []
         for mult in (0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3):
             fc   = weekly_fixed * mult
             bep  = fc / fin["avg_cm"] if fin["avg_cm"] > 0 else 0
             net_w= (fin["pool"] - fc) * factor
             sce.append({
-                f"Fixed Costs/{plab.capitalize()}": f"${fc*factor:,.0f}",
-                "Orders to Break Even":             f"{bep:.0f}",
-                "Your Surplus Orders":              f"{fin['covers']-bep:+.0f}",
-                f"Net Profit/{plab.capitalize()}":  f"${net_w:+,.0f}",
-                "Annual Profit":                    f"${(fin['pool']-fc)*52:+,.0f}",
+                f"Fixed Costs":          f"${fc*factor:,.0f}",
+                "Orders to Break Even":  f"{bep:.0f}",
+                "Your Extra Orders":     f"{fin['covers']-bep:+.0f}",
+                f"Net Profit":           f"${net_w:+,.0f}",
+                "Annual Profit":         f"${(fin['pool']-fc)*52:+,.0f}",
             })
         st.dataframe(pd.DataFrame(sce), use_container_width=True, hide_index=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("📄  Generate & Download Full Report"):
+        if st.button("📄  Build Report"):
             html = generate_report(
                 menu_df, eng_df, fin, opt_prices, mc,
                 sh_k, sh_b, sh_s, eoq_data, kitchen, recs, period, rdate)
@@ -1314,13 +1286,12 @@ if st.session_state.ran:
                 data=html,
                 file_name=f"MenuProfit_{period}_{rdate}.html",
                 mime="text/html")
-            st.success("Ready — click the download button above.")
+            st.success("Ready — click the button above to download.")
 
     st.markdown("""
     <div style="text-align:center;color:#1E2840;font-size:.72rem;
                 padding:20px 0 6px;border-top:1px solid rgba(255,255,255,.04);margin-top:18px">
-      MenuProfit Pro &nbsp;·&nbsp; LP · EOQ · Monte Carlo · Markov · Queuing &nbsp;·&nbsp;
-      10 OR Models · 18 Input Variables
+      MenuProfit Pro &nbsp;·&nbsp; Smart pricing · Stock management · Kitchen efficiency
     </div>""", unsafe_allow_html=True)
 
 else:
@@ -1329,7 +1300,7 @@ else:
       <div style="font-size:2.5rem;margin-bottom:14px">🍽️</div>
       <div style="font-size:1rem;line-height:1.9">
         Edit your menu above, then tap<br>
-        <strong style="color:#D2A248">🚀 Run Full Analysis</strong><br>
-        LP · EOQ · Monte Carlo · Markov CLV · Kitchen Queuing — all in &lt;3 seconds.
+        <strong style="color:#D2A248">🚀 Run Analysis</strong><br>
+        Results appear in under 3 seconds.
       </div>
     </div>""", unsafe_allow_html=True)
