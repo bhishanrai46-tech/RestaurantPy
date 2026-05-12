@@ -307,7 +307,7 @@ def kitchen_analysis(df, available_mins):
         "util_pct":      min(util * 100, 100),
         "seating_load":  (df["Table Time (min)"] * df["Sold/Wk"]).sum(),
         "bottleneck":    bottleneck,
-        "profit_per_min":pm.values,
+        "profit_per_min": np.array(pm),
         "dish_loads":    total_t.values,
     }
 
