@@ -1,126 +1,97 @@
-# ☕ CafeIQ Pro — Cafe & Restaurant Optimization Dashboard
+# Seralung Opti — Cafe Business Optimization Software
 
-A professional, data-driven dashboard for cafe owners to increase profit, reduce waste,
-optimize staffing, and monitor live sales — powered by Python, Streamlit, and Plotly.
+**Version:** 1.0.0  
+**Stack:** Python · Streamlit · Supabase · Pandas · Plotly  
+**Target:** Small to medium cafe and food service businesses
 
 ---
 
-## 🚀 Quick Start
+## What It Does
+
+Seralung Opti connects to your POS system or accepts CSV exports and turns raw transaction data into clear, actionable business intelligence. It helps cafe owners understand which menu items drive profit, when peak hours occur, what to price, and what to change.
+
+---
+
+## Core Modules
+
+| Module | Purpose |
+|---|---|
+| **Overview** | Revenue, profit, food cost, top/worst items, peak hours |
+| **Price Calculator** | Optimized pricing with margin recommendations |
+| **Recommendations** | Combo offers, removals, promotions, inventory hints |
+| **Reports** | Weekly/monthly exports with charts and email delivery |
+
+---
+
+## Project Structure
+
+```
+seralung-opti/
+├── app.py                        # Streamlit entry point and navigation
+├── requirements.txt              # Python dependencies
+├── .env.example                  # Environment variable template
+│
+├── pages/                        # Streamlit multi-page app
+│   ├── 1_overview.py             # Dashboard and KPIs
+│   ├── 2_price_calculator.py     # Price optimization tool
+│   ├── 3_recommendations.py      # Business recommendations
+│   └── 4_reports.py              # Report generation
+│
+├── services/                     # Business logic layer
+│   ├── data_ingestion.py         # CSV upload and POS parsing
+│   ├── data_cleaning.py          # Data normalization pipeline
+│   ├── analytics.py              # Revenue, profit, trend calculations
+│   ├── price_optimizer.py        # Margin and pricing logic
+│   ├── recommendations.py        # Insight generation engine
+│   └── report_generator.py       # PDF/CSV report builder
+│
+├── database/                     # Data access layer
+│   ├── client.py                 # Supabase connection
+│   ├── schema.sql                # PostgreSQL table definitions
+│   ├── menu_items.py             # menu_items CRUD
+│   ├── menu_costs.py             # menu_costs CRUD
+│   └── transactions.py           # transactions CRUD
+│
+├── utils/                        # Shared utilities
+│   ├── styling.py                # Streamlit CSS theming
+│   ├── formatters.py             # Number and currency helpers
+│   ├── charts.py                 # Plotly chart factories
+│   └── validators.py             # Data validation helpers
+│
+├── reports/                      # Report output handlers
+│   ├── weekly_report.py          # 7-day rolling report
+│   ├── monthly_report.py         # Calendar month report
+│   └── email_sender.py           # SMTP email delivery
+│
+└── assets/
+    └── sample_data/
+        └── sample_transactions.csv   # Demo data for testing
+```
+
+---
+
+## Quick Start
+
+See [SETUP.md](SETUP.md) for full installation and configuration steps.
 
 ```bash
-# 1. Install dependencies
-pip install streamlit pandas numpy plotly openpyxl
-
-# 2. Run the app
+git clone https://github.com/your-org/seralung-opti.git
+cd seralung-opti
+pip install -r requirements.txt
+cp .env.example .env          # fill in your Supabase credentials
 streamlit run app.py
 ```
 
-That's it. Demo data is seeded automatically on first run.
+---
+
+## Documentation Index
+
+- [SETUP.md](SETUP.md) — Installation, environment setup, first run
+- [DATABASE.md](DATABASE.md) — Schema reference, Supabase setup, migrations
+- [CONTRIBUTING.md](CONTRIBUTING.md) — Code style, branching, pull request guide
 
 ---
 
-## 📊 Features
+## License
 
-| Tab | What it does |
-|-----|-------------|
-| **Dashboard** | KPIs, revenue trend, peak heatmap, profit waterfall |
-| **Menu** | BCG matrix, margin analysis, pricing recommendations, what-if tester |
-| **Waste** | 30-day waste tracking, ingredient-level analysis, inventory & EOQ |
-| **Staffing** | Demand vs staff heatmap, overstaffing detection, roster editor |
-| **Live Sales** | Simulated real-time order stream, daily target progress |
-| **Reports** | Excel (5 sheets), HTML/PDF, CSV exports |
-
----
-
-## 🔑 Core Variables Tracked
-
-- Food cost % (target < 32%)
-- Labor cost % (target < 30%)
-- Waste % of revenue (target < 3%)
-- Gross margin per item
-- Profit per kitchen minute (batch-adjusted)
-- Peak-hour demand vs staffing
-- Inventory turnover & EOQ
-- Average order value
-- Customer lifetime value proxy
-
----
-
-## 🗄️ Database
-
-**Default:** SQLite (`cafeiq.db`) — zero setup, created automatically.
-
-**Production (Supabase/PostgreSQL):**
-
-```bash
-pip install supabase
-export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_KEY="your-anon-key"
-```
-
-The app detects the env vars and switches to Supabase automatically.
-You'll need to run the same `CREATE TABLE` DDL from `app.py → _ddl()` in your Supabase SQL editor.
-
----
-
-## 📐 Prep Time Model
-
-Instead of fixed times, the app uses a realistic batch + rush model:
-
-```
-T_effective = BasePrep × BatchFactor × RushFactor − PrepBonus
-
-BatchFactor  : 0.65 if daily_sold > 80 (batch cooking)
-             : 0.80 if daily_sold > 40 (moderate batching)
-             : 1.00 otherwise (single order)
-RushFactor   : 1.20 during peak hours (8–9 AM, 12–1 PM)
-PrepBonus    : −0.25 if ingredients are pre-prepped
-```
-
----
-
-## 🍽️ Sample Menu
-
-Comes pre-loaded with 15 realistic Sydney cafe items across:
-- **Coffee**: Espresso, Long Black, Cappuccino, Flat White, Iced Latte, Chai Latte
-- **Food**: Avocado Toast, Eggs Benedict, Granola Bowl, Chicken Wrap, Caesar Salad
-- **Snacks**: Banana Bread, Chocolate Croissant, Blueberry Muffin
-
-All prices in AUD with realistic food costs and demand volumes.
-
----
-
-## 📤 Exports
-
-| Format | Contents |
-|--------|----------|
-| **Excel** | Summary · Menu Analysis · Pricing · Daily Sales · Waste Log |
-| **HTML/PDF** | Styled management report (print to PDF from browser) |
-| **CSV** | Menu, Sales, and Waste as separate files |
-
----
-
-## ⚙️ Configuration (Sidebar)
-
-- **Daily Revenue Target** — drives live sales progress bar
-- **Fixed Costs / Week** — rent, utilities, insurance (affects net profit)
-- **Default Labor Rate** — used for staffing cost calculations
-
----
-
-## 🏗️ Architecture
-
-```
-app.py
-├── Database layer      SQLite default · Supabase optional
-├── Data loaders        pandas SQL queries
-├── Business engine     margin, prep time, EOQ, recommendations
-├── Chart functions     Plotly go/express (15+ charts)
-├── Recommendation AI   rule-based, specific, actionable
-├── Live simulation     Poisson arrival model by hour
-└── Report builders     Excel, HTML, CSV
-```
-
----
-
-Built with ❤️ for cafe owners who want real numbers, not generic dashboards.
+Proprietary. All rights reserved — Seralung Opti © 2024.
